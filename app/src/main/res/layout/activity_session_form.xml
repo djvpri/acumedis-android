@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="6dp">
+
+        <ImageButton
+            android:id="@+id/back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="-12dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Kembali"
+            android:src="@drawable/ic_back" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sesi terapi baru"
+                android:textColor="@color/fg"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Pilih pasien"
+                android:textColor="@color/muted"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="20dp">
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Pasien" />
+
+            <TextView
+                android:id="@+id/pickPatient"
+                style="@style/FieldInput"
+                android:clickable="true"
+                android:drawableEnd="@drawable/ic_chevron"
+                android:drawablePadding="8dp"
+                android:focusable="true"
+                android:text="Pilih pasien" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Keluhan utama" />
+
+            <EditText
+                android:id="@+id/complaint"
+                style="@style/FieldInput"
+                android:hint="Contoh: nyeri punggung bawah"
+                android:importantForAutofill="no"
+                android:inputType="textCapSentences" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Warna lidah" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="4">
+
+                <TextView android:id="@+id/tPucat" style="@style/Chip" android:layout_weight="1" android:text="Pucat" android:textAlignment="center" />
+                <TextView android:id="@+id/tMerah" style="@style/Chip" android:layout_weight="1" android:text="Merah" android:textAlignment="center" />
+                <TextView android:id="@+id/tUngu" style="@style/Chip" android:layout_weight="1" android:text="Ungu" android:textAlignment="center" />
+                <TextView android:id="@+id/tNormal" style="@style/Chip" android:layout_weight="1" android:text="Normal" android:textAlignment="center" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Skala nyeri (0-10)" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <SeekBar
+                    android:id="@+id/pain"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:max="10"
+                    android:progress="5" />
+
+                <TextView
+                    android:id="@+id/painLabel"
+                    android:layout_width="48dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="5/10"
+                    android:textColor="@color/fg"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Titik terapi" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView android:id="@+id/pLI4" style="@style/Chip" android:text="LI4" />
+                <TextView android:id="@+id/pGB34" style="@style/Chip" android:text="GB34" />
+                <TextView android:id="@+id/pBL40" style="@style/Chip" android:text="BL40" />
+                <TextView android:id="@+id/pST36" style="@style/Chip" android:text="ST36" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView android:id="@+id/pSP6" style="@style/Chip" android:text="SP6" />
+                <TextView android:id="@+id/pCV4" style="@style/Chip" android:text="CV4" />
+                <TextView android:id="@+id/pGV20" style="@style/Chip" android:text="GV20" />
+                <TextView android:id="@+id/pLU7" style="@style/Chip" android:text="LU7" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Durasi (menit)" />
+
+            <EditText
+                android:id="@+id/duration"
+                style="@style/FieldInput"
+                android:hint="30"
+                android:importantForAutofill="no"
+                android:inputType="number" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Catatan" />
+
+            <EditText
+                android:id="@+id/notes"
+                style="@style/FieldInput"
+                android:gravity="top|start"
+                android:hint="Observasi, anjuran, dsb"
+                android:importantForAutofill="no"
+                android:inputType="textCapSentences|textMultiLine"
+                android:minLines="3" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Biaya" />
+
+            <EditText
+                android:id="@+id/fee"
+                style="@style/FieldInput"
+                android:hint="150000"
+                android:importantForAutofill="no"
+                android:inputType="number" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/paid"
+                    style="@style/Chip"
+                    android:text="Sudah dibayar" />
+
+                <TextView
+                    android:id="@+id/unpaid"
+                    style="@style/Chip"
+                    android:text="Belum dibayar" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/red"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="20dp">
+
+        <TextView
+            android:id="@+id/save"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_btn"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="Simpan sesi"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

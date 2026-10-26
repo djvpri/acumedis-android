@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#FF0E7490</color>
+    <color name="primary_deep">#FF155E75</color>
+    <color name="soft">#FFCFFAFE</color>
+    <color name="bg">#FFF4FBFD</color>
+    <color name="card">#FFFFFFFF</color>
+    <color name="fg">#FF164E63</color>
+    <color name="fg2">#FF334155</color>
+    <color name="muted">#FF5A7182</color>
+    <color name="border">#FFD7EEF3</color>
+    <color name="green">#FF0F766E</color>
+    <color name="green_soft">#FFCCFBF1</color>
+    <color name="amber">#FFB45309</color>
+    <color name="amber_soft">#FFFEF3C7</color>
+    <color name="red">#FFB91C1C</color>
+    <color name="red_soft">#FFFEE2E2</color>
+</resources>

@@ -1,0 +1,2 @@
+-keep class com.acumedis.app.** { *; }
+-dontwarn okhttp3.**
