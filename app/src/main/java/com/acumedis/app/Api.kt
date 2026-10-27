@@ -17,6 +17,9 @@ object Api {
     private const val TIMEOUT = 20_000
     val io = Executors.newFixedThreadPool(3)
 
+    /** Server bawaan; dipakai kalau pengguna belum pernah mengisi alamat. */
+    const val DEFAULT_BASE = "https://fctqy79kuiw9c7cddjfdcsgg.103.93.129.94.sslip.io"
+
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("acumedis", Context.MODE_PRIVATE)
 
     fun baseUrl(ctx: Context): String =
@@ -192,6 +195,30 @@ object Api {
         } finally {
             c?.disconnect()
         }
+    }
+
+    /**
+     * Tukar JWT Z One (dari deep link `acumedis://sso?token=`) jadi sesi app.
+     * @return null kalau sukses, selain itu pesan error.
+     */
+    fun ssoExchange(ctx: Context, zoneToken: String): String? {
+        val raw = postPublic(
+            ctx, "/v1/auth/sso/exchange",
+            JSONObject().put("token", zoneToken).put("deviceId", android.os.Build.MODEL)
+        ) ?: return "Tidak dapat menghubungi server"
+
+        return runCatching {
+            val o = JSONObject(raw)
+            if (!o.optBoolean("ok")) return o.optString("error", "Gagal masuk")
+            val u = o.getJSONObject("user")
+            prefs(ctx).edit()
+                .putString("access_token", o.getString("accessToken"))
+                .putString("refresh_token", o.getString("refreshToken"))
+                .putString("user_name", u.optString("name"))
+                .putString("clinic_name", u.optString("clinicName"))
+                .apply()
+            null
+        }.getOrElse { "Balasan server tidak dikenali" }
     }
 
     // ---------- endpoint ----------

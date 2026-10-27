@@ -38,11 +38,34 @@ class LoginActivity : AppCompatActivity() {
         ssoBtn = findViewById(R.id.ssoBtn)
         findViewById<TextView>(R.id.version).text = "v${BuildConfig.VERSION_NAME}"
 
-        fBase.setText(Api.baseUrl(this).ifBlank { "https://fctqy79kuiw9c7cddjfdcsgg.103.93.129.94.sslip.io" })
+        fBase.setText(Api.baseUrl(this).ifBlank { Api.DEFAULT_BASE })
         btn.setOnClickListener { doLogin() }
         ssoBtn.setOnClickListener { doSso() }
+        // tekan lama kolom alamat → kembalikan ke server bawaan
+        fBase.setOnLongClickListener { resetBaseToDefault(); true }
 
         if (Api.isLoggedIn(this)) goMain()
+        handleDeepLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    /** `acumedis://sso?token=...` dari halaman /link Z One. */
+    private fun handleDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "acumedis" || uri.host != "sso") return
+        val token = uri.getQueryParameter("token")
+        if (token.isNullOrBlank()) return fail("Tautan Z One tidak membawa token")
+
+        fError.visibility = View.GONE
+        Api.io.execute {
+            val err = Api.ssoExchange(this, token)
+            runOnUiThread { if (err == null) goMain() else fail(err) }
+        }
     }
 
     override fun onDestroy() {
@@ -91,7 +114,7 @@ class LoginActivity : AppCompatActivity() {
             runOnUiThread {
                 ssoBtn.isEnabled = true
                 ssoBtn.text = "Masuk dengan Z One"
-                if (o == null) return@runOnUiThread fail("Tidak dapat meminta kode ke server")
+                if (o == null) return@runOnUiThread fail("Tidak dapat meminta kode ke server $base")
                 showSsoDialog(o.getString("code"), o.getString("verifyUrl"))
             }
         }
@@ -184,6 +207,17 @@ class LoginActivity : AppCompatActivity() {
 
     private fun fail(msg: String) {
         fError.text = msg
+        fError.visibility = View.VISIBLE
+    }
+
+    /** Alamat tersimpan bisa basi setelah server pindah; sediakan jalan pulang. */
+    private fun resetBaseToDefault() {
+        val cur = fBase.text.toString().trim().trimEnd('/')
+        if (cur == Api.DEFAULT_BASE) return
+        fBase.setText(Api.DEFAULT_BASE)
+        Api.setBaseUrl(this, Api.DEFAULT_BASE)
+        fError.text = "Alamat server dikembalikan ke bawaan."
+        fError.setTextColor(getColor(R.color.green))
         fError.visibility = View.VISIBLE
     }
 
