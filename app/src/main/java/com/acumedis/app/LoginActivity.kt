@@ -26,7 +26,7 @@ class LoginActivity : AppCompatActivity() {
         btn = findViewById(R.id.loginBtn)
         findViewById<TextView>(R.id.version).text = "v${BuildConfig.VERSION_NAME}"
 
-        fBase.setText(Api.baseUrl(this).ifBlank { BuildConfig.BASE_URL })
+        fBase.setText(Api.baseUrl(this).ifBlank { "https://fctqy79kuiw9c7cddjfdcsgg.103.93.129.94.sslip.io" })
         btn.setOnClickListener { doLogin() }
 
         if (Api.isLoggedIn(this)) goMain()
