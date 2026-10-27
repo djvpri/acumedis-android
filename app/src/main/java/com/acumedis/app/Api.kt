@@ -151,6 +151,47 @@ object Api {
         }.getOrElse { "Balasan server tidak dikenali" }
     }
 
+    // ---------- SSO Z One (device code) ----------
+
+    /** Minta kode perangkat. @return JSONObject {code, verifyUrl, expiresIn} atau null. */
+    fun ssoStart(ctx: Context): JSONObject? {
+        val raw = postPublic(ctx, "/v1/auth/sso/start", JSONObject().put("deviceId", android.os.Build.MODEL))
+            ?: return null
+        return runCatching { JSONObject(raw) }.getOrNull()
+    }
+
+    /**
+     * Cek status kode.
+     * @return pasangan (status, pesan); status: "pending" | "ok" | "error"
+     */
+    fun ssoPoll(ctx: Context, code: String): Pair<String, String?> {
+        var c: HttpURLConnection? = null
+        return try {
+            c = conn(ctx, "/v1/auth/sso/poll?code=" + java.net.URLEncoder.encode(code, "UTF-8"), "GET", auth = false)
+            val (status, text) = read(c)
+            val o = runCatching { JSONObject(text) }.getOrNull()
+                ?: return Pair("error", "Balasan server tidak dikenali")
+            when {
+                status == 202 || o.optBoolean("pending") -> Pair("pending", null)
+                status in 200..299 && o.optBoolean("ok") -> {
+                    val u = o.getJSONObject("user")
+                    prefs(ctx).edit()
+                        .putString("access_token", o.getString("accessToken"))
+                        .putString("refresh_token", o.getString("refreshToken"))
+                        .putString("user_name", u.optString("name"))
+                        .putString("clinic_name", u.optString("clinicName"))
+                        .apply()
+                    Pair("ok", null)
+                }
+                else -> Pair("error", o.optString("error", "Gagal masuk"))
+            }
+        } catch (e: Exception) {
+            Pair("error", "Tidak dapat menghubungi server")
+        } finally {
+            c?.disconnect()
+        }
+    }
+
     // ---------- endpoint ----------
 
     fun summary(ctx: Context): JSONObject? =

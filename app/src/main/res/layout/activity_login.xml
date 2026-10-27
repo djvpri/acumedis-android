@@ -96,6 +96,20 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/ssoBtn"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_input"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="Masuk dengan Z One"
+            android:textColor="@color/primary_deep"
+            android:textSize="14.5sp"
+            android:textStyle="bold" />
+
+        <TextView
             android:id="@+id/version"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
