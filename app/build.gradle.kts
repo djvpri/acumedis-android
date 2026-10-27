@@ -11,8 +11,8 @@ android {
         applicationId = "com.acumedis.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         val baseUrl = (project.findProperty("ACUMEDIS_BASE_URL") as String?) ?: ""
         buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
@@ -57,4 +57,5 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
