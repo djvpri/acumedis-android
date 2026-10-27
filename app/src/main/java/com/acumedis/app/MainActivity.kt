@@ -74,26 +74,17 @@ class MainActivity : AppCompatActivity() {
     private fun load() {
         val today = LocalDate.now().toString()
         Api.io.execute {
-            val appts = Api.appointments(this)
-            val sessions = Api.sessions(this)
+            val appts = Api.appointments(this, today)
+            val sum = Api.summary(this)
 
             val rows = mutableListOf<QueueRow>()
-            var done = 0
-            var waiting = 0
-            var unpaid = 0
-
             for (i in 0 until appts.length()) {
                 val o = appts.getJSONObject(i)
-                val at = o.optString("scheduledAt")
-                if (!at.startsWith(today)) continue
                 val status = o.optString("status")
                 if (status == "cancelled") continue
 
-                val patientObj = o.optJSONObject("patient")
-                val pName = patientObj?.optString("name")
-                    ?: o.optString("externalName").ifBlank { "Pasien" }
-                val pId = patientObj?.optString("id")
-                val qn = if (o.isNull("queueNumber")) 0 else o.optInt("queueNumber")
+                val at = o.optString("scheduled_at")
+                val qn = if (o.isNull("queue_number")) 0 else o.optInt("queue_number")
                 val time = if (at.length >= 16) at.substring(11, 16) else "-"
                 val isDone = status == "done"
                 val tag = when {
@@ -101,26 +92,29 @@ class MainActivity : AppCompatActivity() {
                     qn > 0 -> "A-%02d".format(qn)
                     else -> "Antre"
                 }
-                if (isDone) done++ else waiting++
-
                 rows.add(
-                    QueueRow(time, pName, o.optString("reason").ifBlank { "Konsultasi" },
-                        tag, isDone, pId)
+                    QueueRow(
+                        time,
+                        o.optString("patient_name").ifBlank {
+                            o.optString("external_name").ifBlank { "Pasien" }
+                        },
+                        o.optString("reason").ifBlank { "Konsultasi" },
+                        tag, isDone,
+                        o.optString("patient_id").ifBlank { null }
+                    )
                 )
             }
 
-            for (i in 0 until sessions.length()) {
-                val o = sessions.getJSONObject(i)
-                if (o.optString("session_date").startsWith(today) &&
-                    o.optString("payment_status") != "paid"
-                ) unpaid++
-            }
-
             val sorted = rows.sortedBy { it.time }
-
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
-                findViewById<TextView>(R.id.todayTotal).text = "${sorted.size} pasien"
+
+                val total = sorted.size
+                val done = sum?.optInt("appointments_done", 0) ?: sorted.count { it.done }
+                val waiting = sum?.optInt("appointments_waiting", 0) ?: (total - done)
+                val unpaid = sum?.optInt("unpaid_count", 0) ?: 0
+
+                findViewById<TextView>(R.id.todayTotal).text = "$total pasien"
                 findViewById<TextView>(R.id.statDone).text = done.toString()
                 findViewById<TextView>(R.id.statWaiting).text = waiting.toString()
                 findViewById<TextView>(R.id.statUnpaid).text = unpaid.toString()
@@ -159,3 +153,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+

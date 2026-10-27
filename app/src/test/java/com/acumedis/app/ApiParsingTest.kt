@@ -1,85 +1,112 @@
 package com.acumedis.app
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Uji jalur parsing terhadap bentuk JSON asli server AcuMedis
- * (bentuk diambil dari respons nyata /api/patients, /api/sessions, /api/appointments).
+ * Bentuk JSON diambil dari respons nyata acumedis-api
+ * (/v1/patients, /v1/sessions, /v1/summary, /v1/appointments, /v1/auth/login).
  */
 class ApiParsingTest {
 
     private val patientJson = """
-    {"id":"cmvq1fxlh0001p7bu6llp0pxs","tenantId":"t-acumedis","name":"Siti Rahma",
-     "gender":"female","birthDate":"1991-04-12T00:00:00.000Z","phone":"081234567890",
-     "email":null,"address":"Badau","avatarBase64":null,
-     "avatar_url":null,"birth_date":"1991-04-12","total_sessions":1,
-     "last_session_date":"2026-10-27T02:00:06.946Z","createdAt":"2026-10-27T02:00:06.058Z"}
+    {"id":"cmvq3o5hf000610u21rfrsz0n","name":"Budi Santoso","gender":"male",
+     "birth_date":"1985-11-02","phone":"081298765432","email":null,"address":"Badau",
+     "note":null,"total_sessions":1,"last_session_date":"2026-10-27T03:02:28.823Z",
+     "updated_at":"2026-10-27T03:02:28.804Z"}
     """.trimIndent()
 
     private val sessionJson = """
-    {"id":"cmvq1fy910003p7builf9b2s5","patient_id":"cmvq1fxlh0001p7bu6llp0pxs",
-     "session_date":"2026-10-27T02:00:06.946Z","chief_complaint":"Nyeri punggung bawah",
-     "tongue_color":"Pucat","pain_scale":6,"tcm_diagnosis":null,
-     "points_used":["LI4","GB34","BL40"],"duration_minutes":30,"notes":"Tes",
-     "fee":150000,"payment_status":"paid",
-     "patient":{"id":"cmvq1fxlh0001p7bu6llp0pxs","name":"Siti Rahma","gender":"female"}}
+    {"id":"cmvq3pggc0005b9qvqc4rduq8","patient_id":"cmvq3pg3r0003b9qvrk4jvze7",
+     "patient_name":"Rina Putri","practitioner_id":"cmvq3o5gj000210u2ach9cx2r",
+     "session_date":"2026-10-27T03:03:29.674Z","chief_complaint":"Migrain berulang",
+     "tongue_color":"Merah","tongue_coating":null,"pulse_quality":null,"pain_scale":7,
+     "tcm_diagnosis":null,"points_used":["GB20","LI4"],"duration_minutes":30,
+     "notes":null,"ai_recommendation":null,"fee":150000,"payment_status":"unpaid",
+     "photos":[],"created_at":"2026-10-27T03:03:29.674Z","updated_at":"2026-10-27T03:03:29.674Z"}
     """.trimIndent()
 
     private val appointmentJson = """
-    {"id":"ap1","scheduledAt":"2026-10-27T02:30:00.000Z","durationMinutes":60,
-     "reason":"Kontrol","status":"confirmed","queueNumber":3,
-     "patient":{"id":"cmvq1fxlh0001p7bu6llp0pxs","name":"Siti Rahma"}}
+    {"id":"cmvq3o5i7000b10u2uhs7pv24","scheduled_at":"2026-10-27T01:30:00.000Z",
+     "duration_minutes":60,"reason":"Kontrol nyeri punggung","status":"confirmed",
+     "queue_number":1,"notes":null,"patient_id":"cmvq3o5h8000410u26hfefm5o",
+     "patient_name":"Siti Rahma","external_name":null,"external_phone":null,
+     "updated_at":"2026-10-27T02:58:00.000Z"}
     """.trimIndent()
 
     @Test
-    fun patientParsesFromRealShape() {
-        val p = Patient.from(org.json.JSONObject(patientJson))
-        assertEquals("cmvq1fxlh0001p7bu6llp0pxs", p.id)
-        assertEquals("Siti Rahma", p.name)
-        assertEquals("female", p.gender)
-        assertEquals("081234567890", p.phone)
-        assertEquals("1991-04-12", p.birthDate)
+    fun patientParsesFromApiShape() {
+        val p = Patient.from(JSONObject(patientJson))
+        assertEquals("cmvq3o5hf000610u21rfrsz0n", p.id)
+        assertEquals("Budi Santoso", p.name)
+        assertEquals("male", p.gender)
+        assertEquals("081298765432", p.phone)
+        assertEquals("1985-11-02", p.birthDate)
         assertEquals(1, p.totalSessions)
-        assertEquals("SR", p.initials())
+        assertEquals("BS", p.initials())
         assertNotNull(p.lastSession)
     }
 
     @Test
-    fun sessionParsesFromRealShape() {
-        val v = Visit.from(org.json.JSONObject(sessionJson))
-        assertEquals("cmvq1fxlh0001p7bu6llp0pxs", v.patientId)
-        assertEquals("Siti Rahma", v.patientName)
+    fun sessionParsesFromApiShape() {
+        val v = Visit.from(JSONObject(sessionJson))
+        assertEquals("cmvq3pg3r0003b9qvrk4jvze7", v.patientId)
+        assertEquals("Rina Putri", v.patientName)
         assertEquals("2026-10-27", v.date)
-        assertEquals("Nyeri punggung bawah", v.complaint)
-        assertEquals(listOf("LI4", "GB34", "BL40"), v.points)
+        assertEquals("Migrain berulang", v.complaint)
+        assertEquals(listOf("GB20", "LI4"), v.points)
         assertEquals(30, v.duration)
         assertEquals(150000.0, v.fee!!, 0.001)
-        assertEquals("paid", v.payment)
-        // tcm_diagnosis null → harus null, bukan string "null"
+        assertEquals("unpaid", v.payment)
         assertEquals(null, v.diagnosis)
     }
 
     @Test
-    fun appointmentFieldsAccessible() {
-        val o = org.json.JSONObject(appointmentJson)
-        assertEquals("2026-10-27T02:30:00.000Z", o.optString("scheduledAt"))
-        assertEquals(3, o.optInt("queueNumber"))
-        assertEquals("Siti Rahma", o.optJSONObject("patient")?.optString("name"))
-        // tanggal dipakai untuk filter "hari ini"
-        assertEquals("2026-10-27", o.optString("scheduledAt").take(10))
+    fun appointmentFieldsForHomeScreen() {
+        val o = JSONObject(appointmentJson)
+        val at = o.optString("scheduled_at")
+        assertEquals("01:30", at.substring(11, 16))
+        assertEquals(1, o.optInt("queue_number"))
+        assertEquals("Siti Rahma", o.optString("patient_name"))
+        assertEquals("confirmed", o.optString("status"))
+        assertEquals("2026-10-27", at.take(10))
     }
 
     @Test
-    fun jamDariIso() {
-        val at = "2026-10-27T02:30:00.000Z"
-        assertEquals("02:30", at.substring(11, 16))
+    fun summaryFieldsForHeader() {
+        val sum = JSONObject(
+            """{"ok":true,"date":"2026-10-27","appointments_total":2,"appointments_done":0,
+               "appointments_waiting":2,"sessions_today":2,"income_today":150000,
+               "expense_today":85000,"unpaid_count":1,"unpaid_amount":150000}""".trimIndent()
+        )
+        assertEquals(0, sum.optInt("appointments_done"))
+        assertEquals(2, sum.optInt("appointments_waiting"))
+        assertEquals(1, sum.optInt("unpaid_count"))
+        assertTrue(sum.optInt("income_today") > 0)
     }
 
     @Test
-    fun formatRupiahDanTanggalUntukNota() {
+    fun loginResponseShape() {
+        val o = JSONObject(
+            """{"ok":true,"accessToken":"eyJhbG...","refreshToken":"a825a15b",
+               "user":{"id":"u1","name":"dr. Ayu Lestari","email":"admin@acumedis.app",
+               "role":"owner","tenantId":"t1","clinicName":"Klinik AcuMedis",
+               "currency":"IDR","defaultFee":150000}}""".trimIndent()
+        )
+        assertTrue(o.optBoolean("ok"))
+        assertEquals("dr. Ayu Lestari", o.getJSONObject("user").optString("name"))
+        assertEquals("Klinik AcuMedis", o.getJSONObject("user").optString("clinicName"))
+        assertTrue(o.optString("accessToken").isNotEmpty())
+        assertTrue(o.optString("refreshToken").isNotEmpty())
+    }
+
+    @Test
+    fun formatUntukTampilan() {
         assertEquals("Rp 150.000", Fmt.rupiah(150000.0))
-        assertEquals("27 Okt 2026", Fmt.tanggal("2026-10-27T02:00:06.946Z"))
+        assertEquals("27 Okt 2026", Fmt.tanggal("2026-10-27T03:02:28.823Z"))
+        assertEquals("27 Okt", Fmt.pendek("2026-10-27T03:02:28.823Z"))
     }
 }

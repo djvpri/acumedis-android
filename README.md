@@ -2,13 +2,15 @@
 
 App Android native untuk [AcuMedis](https://github.com/djvpri/z_medics) — rekam medis klinik TCM.
 
-Kotlin + AppCompat, tanpa dependensi jaringan eksternal (`HttpURLConnection`), login memakai
-NextAuth credentials milik server AcuMedis (cookie-based).
+Kotlin + AppCompat, tanpa dependensi jaringan eksternal (`HttpURLConnection`).
+
+Backend: **[acumedis-api](https://github.com/djvpri/acumedis-api)** — Fastify + Prisma, JWT
+(access token 30 menit + refresh token rotasi 30 hari). App tidak lagi memakai cookie NextAuth.
 
 ## Fitur v1.0.0
 
-- **Login** — alamat server + email + password (NextAuth `/api/auth/csrf` → `/api/auth/callback/credentials`)
-- **Beranda** — ringkasan jadwal hari ini (total, selesai, menunggu, belum bayar) + antrean berikutnya dengan nomor antrean
+- **Login** — alamat server + email + password → `/v1/auth/login`, token disimpan lokal, refresh otomatis saat 401
+- **Beranda** — `/v1/summary` (selesai, menunggu, belum bayar) + antrean hari ini dari `/v1/appointments?date=`
 - **Pasien** — daftar, cari nama/telepon, tambah pasien
 - **Rekam medis** — riwayat terapi per pasien, total sesi, status pembayaran
 - **Sesi terapi baru** — keluhan, warna lidah, skala nyeri, titik terapi (chip), durasi, catatan, biaya, status bayar

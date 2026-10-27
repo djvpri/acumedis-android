@@ -3,168 +3,193 @@ package com.acumedis.app
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.util.concurrent.Executors
 
-/** Klien HTTP ke server AcuMedis (NextAuth cookie-based). Tanpa dependensi tambahan. */
+/**
+ * Klien acumedis-api (Fastify + JWT).
+ * Auth: access token (30 menit) + refresh token (30 hari, rotasi).
+ * Tanpa dependensi jaringan tambahan — HttpURLConnection saja.
+ */
 object Api {
 
-    private const val TIMEOUT = 15_000
+    private const val TIMEOUT = 20_000
     val io = Executors.newFixedThreadPool(3)
-
-    /** Simpan cookie sesi next-auth antar request. */
-    private val cookies = HashMap<String, String>()
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("acumedis", Context.MODE_PRIVATE)
 
-    fun baseUrl(ctx: Context): String = prefs(ctx).getString("base_url", "")?.trimEnd('/') ?: ""
+    fun baseUrl(ctx: Context): String =
+        prefs(ctx).getString("base_url", BuildConfig.BASE_URL)?.trimEnd('/') ?: ""
 
     fun setBaseUrl(ctx: Context, url: String) {
-        prefs(ctx).edit().putString("base_url", url.trim().trimEnd('/')).apply()
-        cookies.clear()
+        prefs(ctx).edit().putString("base_url", url.trim().trimEnd('/'))
+            .remove("access_token").remove("refresh_token").apply()
     }
 
-    fun saveCookies(ctx: Context) {
-        val sb = StringBuilder()
-        cookies.forEach { (k, v) -> sb.append(k).append('=').append(v).append(';') }
-        prefs(ctx).edit().putString("cookies", sb.toString()).apply()
-    }
+    fun accessToken(ctx: Context): String = prefs(ctx).getString("access_token", "") ?: ""
+    fun refreshToken(ctx: Context): String = prefs(ctx).getString("refresh_token", "") ?: ""
+    fun userName(ctx: Context): String = prefs(ctx).getString("user_name", "") ?: ""
+    fun clinicName(ctx: Context): String = prefs(ctx).getString("clinic_name", "") ?: ""
 
-    fun loadCookies(ctx: Context) {
-        cookies.clear()
-        val raw = prefs(ctx).getString("cookies", "") ?: return
-        raw.split(';').forEach { part ->
-            val i = part.indexOf('=')
-            if (i > 0) cookies[part.substring(0, i).trim()] = part.substring(i + 1).trim()
-        }
-    }
-
-    fun isLoggedIn(ctx: Context): Boolean {
-        loadCookies(ctx)
-        return baseUrl(ctx).isNotEmpty() && cookies.keys.any { it.contains("session-token") }
-    }
+    fun isLoggedIn(ctx: Context): Boolean =
+        baseUrl(ctx).isNotEmpty() && (accessToken(ctx).isNotEmpty() || refreshToken(ctx).isNotEmpty())
 
     fun logout(ctx: Context) {
-        cookies.clear()
-        prefs(ctx).edit().remove("cookies").apply()
-    }
-
-    fun userName(ctx: Context): String = prefs(ctx).getString("user_name", "") ?: ""
-
-    private fun cookieHeader(): String = cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-
-    private fun absorbCookies(conn: HttpURLConnection) {
-        conn.headerFields?.forEach { (k, v) ->
-            if (k != null && k.equals("Set-Cookie", true)) {
-                v.forEach { c ->
-                    val first = c.substringBefore(';')
-                    val i = first.indexOf('=')
-                    if (i > 0) cookies[first.substring(0, i).trim()] = first.substring(i + 1).trim()
-                }
-            }
+        val rt = refreshToken(ctx)
+        if (rt.isNotEmpty()) {
+            io.execute { runCatching { postPublic(ctx, "/v1/auth/logout", JSONObject().put("refreshToken", rt)) } }
         }
+        prefs(ctx).edit().remove("access_token").remove("refresh_token")
+            .remove("user_name").remove("clinic_name").apply()
     }
 
-    private fun open(ctx: Context, path: String, method: String): HttpURLConnection {
+    // ---------- HTTP dasar ----------
+
+    private fun conn(ctx: Context, path: String, method: String, auth: Boolean): HttpURLConnection {
         val base = baseUrl(ctx)
-        require(base.isNotEmpty()) { "Server belum diatur" }
-        val conn = (URL(base + path).openConnection() as HttpURLConnection).apply {
+        require(base.isNotEmpty()) { "Alamat server belum diatur" }
+        return (URL(base + path).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = TIMEOUT
             readTimeout = TIMEOUT
-            instanceFollowRedirects = true
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "AcuMedis/${BuildConfig.VERSION_NAME}")
-            if (cookies.isNotEmpty()) setRequestProperty("Cookie", cookieHeader())
-            if (method == "POST") {
+            if (auth) {
+                val t = accessToken(ctx)
+                if (t.isNotEmpty()) setRequestProperty("Authorization", "Bearer $t")
+            }
+            if (method != "GET") {
                 doOutput = true
-                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
             }
         }
-        return conn
     }
 
-    fun get(ctx: Context, path: String): String? = runCatching {
-        val conn = open(ctx, path, "GET")
-        absorbCookies(conn)
+    private fun read(conn: HttpURLConnection): Pair<Int, String> {
         val code = conn.responseCode
         val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
             ?.bufferedReader()?.use { it.readText() } ?: ""
         conn.disconnect()
-        if (code in 200..299) text else null
-    }.getOrNull()
+        return code to text
+    }
 
-    fun post(ctx: Context, path: String, body: JSONObject): String? = runCatching {
-        val conn = open(ctx, path, "POST")
-        conn.outputStream.use { it.write(body.toString().toByteArray()) }
-        absorbCookies(conn)
-        val code = conn.responseCode
-        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
-            ?.bufferedReader()?.use { it.readText() } ?: ""
-        conn.disconnect()
-        if (code in 200..299) text else null
-    }.getOrNull()
+    private fun request(
+        ctx: Context, path: String, method: String,
+        body: JSONObject? = null, auth: Boolean = true, retried: Boolean = false
+    ): String? {
+        var c: HttpURLConnection? = null
+        return try {
+            c = conn(ctx, path, method, auth)
+            if (body != null && method != "GET") c.outputStream.use { it.write(body.toString().toByteArray()) }
+            val (code, text) = read(c)
 
-    /** Login NextAuth: ambil csrf → POST callback credentials. */
+            // access token kedaluwarsa → coba refresh sekali
+            if (code == 401 && auth && !retried && refresh(ctx)) {
+                return request(ctx, path, method, body, auth, retried = true)
+            }
+            JSONObject(text)
+            if (code in 200..299) text else null
+        } catch (e: Exception) {
+            null
+        } finally {
+            c?.disconnect()
+        }
+    }
+
+    /** Rotasi token. True kalau dapat access token baru. */
+    fun refresh(ctx: Context): Boolean {
+        val rt = refreshToken(ctx)
+        if (rt.isEmpty()) return false
+        val raw = postPublic(ctx, "/v1/auth/refresh", JSONObject().put("refreshToken", rt)) ?: return false
+        return runCatching {
+            val o = JSONObject(raw)
+            if (!o.optBoolean("ok")) return false
+            prefs(ctx).edit()
+                .putString("access_token", o.optString("accessToken"))
+                .putString("refresh_token", o.optString("refreshToken", rt))
+                .apply()
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun postPublic(ctx: Context, path: String, body: JSONObject): String? {
+        var c: HttpURLConnection? = null
+        return try {
+            c = conn(ctx, path, "POST", auth = false)
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            val (code, text) = read(c)
+            if (code in 200..299) text else null
+        } catch (e: Exception) {
+            null
+        } finally {
+            c?.disconnect()
+        }
+    }
+
+    // ---------- auth ----------
+
+    /** @return null kalau sukses, selain itu pesan error. */
     fun login(ctx: Context, email: String, password: String): String? {
-        val csrfRaw = get(ctx, "/api/auth/csrf") ?: return "Server tidak merespons"
-        val csrf = runCatching { JSONObject(csrfRaw).optString("csrfToken") }.getOrNull()
-        if (csrf.isNullOrBlank()) return "Gagal mengambil token CSRF"
+        val raw = postPublic(
+            ctx, "/v1/auth/login",
+            JSONObject().put("email", email).put("password", password)
+                .put("deviceId", android.os.Build.MODEL)
+        ) ?: return "Server tidak merespons atau kredensial salah"
 
-        val body = buildString {
-            append("csrfToken=").append(URLEncoder.encode(csrf, "UTF-8"))
-            append("&email=").append(URLEncoder.encode(email, "UTF-8"))
-            append("&password=").append(URLEncoder.encode(password, "UTF-8"))
-            append("&json=true")
-        }
-
-        conn0@ run {
-            val conn = open(ctx, "/api/auth/callback/credentials?json=true", "POST")
-            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            conn.outputStream.use { it.write(body.toByteArray()) }
-            absorbCookies(conn)
-            val code = conn.responseCode
-            (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() }
-            conn.disconnect()
-        }
-
-        saveCookies(ctx)
-        val me = get(ctx, "/api/me")
-        if (me == null) return "Email atau password salah"
-        runCatching {
-            val o = JSONObject(me)
-            val name = o.optString("name").ifBlank { email }
-            prefs(ctx).edit().putString("user_name", name).apply()
-        }
-        return null
+        return runCatching {
+            val o = JSONObject(raw)
+            if (!o.optBoolean("ok")) return o.optString("error", "Login gagal")
+            val u = o.getJSONObject("user")
+            prefs(ctx).edit()
+                .putString("access_token", o.getString("accessToken"))
+                .putString("refresh_token", o.getString("refreshToken"))
+                .putString("user_name", u.optString("name"))
+                .putString("clinic_name", u.optString("clinicName"))
+                .apply()
+            null
+        }.getOrElse { "Balasan server tidak dikenali" }
     }
 
-    // ---------- endpoint helpers ----------
+    // ---------- endpoint ----------
 
-    fun patients(ctx: Context): JSONArray {
-        val raw = get(ctx, "/api/patients") ?: return JSONArray()
-        return runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+    fun summary(ctx: Context): JSONObject? =
+        request(ctx, "/v1/summary", "GET")?.let { runCatching { JSONObject(it) }.getOrNull() }
+
+    fun patients(ctx: Context, query: String? = null): JSONArray {
+        val path = if (query.isNullOrBlank()) "/v1/patients"
+        else "/v1/patients?q=" + java.net.URLEncoder.encode(query, "UTF-8")
+        val raw = request(ctx, path, "GET") ?: return JSONArray()
+        return runCatching { JSONObject(raw).optJSONArray("patients") ?: JSONArray() }
+            .getOrDefault(JSONArray())
     }
 
-    fun sessions(ctx: Context): JSONArray {
-        val raw = get(ctx, "/api/sessions") ?: return JSONArray()
-        return runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+    fun sessions(ctx: Context, patientId: String? = null): JSONArray {
+        val path = if (patientId.isNullOrBlank()) "/v1/sessions"
+        else "/v1/sessions?patientId=" + java.net.URLEncoder.encode(patientId, "UTF-8")
+        val raw = request(ctx, path, "GET") ?: return JSONArray()
+        return runCatching { JSONObject(raw).optJSONArray("sessions") ?: JSONArray() }
+            .getOrDefault(JSONArray())
     }
 
-    fun appointments(ctx: Context): JSONArray {
-        val raw = get(ctx, "/api/appointments") ?: return JSONArray()
-        return runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+    fun appointments(ctx: Context, date: String? = null): JSONArray {
+        val path = if (date.isNullOrBlank()) "/v1/appointments" else "/v1/appointments?date=$date"
+        val raw = request(ctx, path, "GET") ?: return JSONArray()
+        return runCatching { JSONObject(raw).optJSONArray("appointments") ?: JSONArray() }
+            .getOrDefault(JSONArray())
     }
 
-    fun createSession(ctx: Context, body: JSONObject): Boolean = post(ctx, "/api/sessions", body) != null
+    fun createPatient(ctx: Context, body: JSONObject): Boolean =
+        request(ctx, "/v1/patients", "POST", body) != null
 
-    fun createPatient(ctx: Context, body: JSONObject): Boolean = post(ctx, "/api/patients", body) != null
+    fun createSession(ctx: Context, body: JSONObject): Boolean =
+        request(ctx, "/v1/sessions", "POST", body) != null
+
+    fun setPayment(ctx: Context, sessionId: String, status: String): Boolean =
+        request(ctx, "/v1/sessions/$sessionId/payment", "PATCH", JSONObject().put("payment_status", status)) != null
 }
 
-/** Model ringan hasil parsing JSON. */
+/** Pasien dari /v1/patients. */
 data class Patient(
     val id: String,
     val name: String,
@@ -190,6 +215,7 @@ data class Patient(
     }
 }
 
+/** Sesi terapi dari /v1/sessions. */
 data class Visit(
     val id: String,
     val patientId: String,
@@ -207,11 +233,10 @@ data class Visit(
             val arr = o.optJSONArray("points_used")
             val points = mutableListOf<String>()
             if (arr != null) for (i in 0 until arr.length()) points.add(arr.optString(i))
-            val p = o.optJSONObject("patient")
             return Visit(
                 id = o.optString("id"),
                 patientId = o.optString("patient_id"),
-                patientName = p?.optString("name") ?: "",
+                patientName = o.optString("patient_name"),
                 date = o.optString("session_date").take(10),
                 complaint = o.optString("chief_complaint"),
                 diagnosis = o.optString("tcm_diagnosis").ifBlank { null },
@@ -224,7 +249,7 @@ data class Visit(
     }
 }
 
-/** Format tanggal ISO → "24 Okt 2026". */
+/** Format tanggal & uang gaya Indonesia. */
 object Fmt {
     private val bulan = arrayOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
         "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
