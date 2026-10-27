@@ -28,6 +28,7 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
+        Log.screen("LoginActivity")
 
         fBase = findViewById(R.id.baseUrl)
         fEmail = findViewById(R.id.email)

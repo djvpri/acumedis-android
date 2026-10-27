@@ -17,6 +17,7 @@ class PatientDetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_patient_detail)
+        Log.screen("PatientDetailActivity")
 
         patientId = intent.getStringExtra("patient_id") ?: ""
         patientName = intent.getStringExtra("patient_name") ?: "Pasien"

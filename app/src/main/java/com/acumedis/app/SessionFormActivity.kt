@@ -32,6 +32,7 @@ class SessionFormActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_session_form)
+        Log.screen("SessionFormActivity")
 
         patientId = intent.getStringExtra("patient_id") ?: ""
         patientName = intent.getStringExtra("patient_name") ?: ""

@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        Log.screen("MainActivity")
 
         queue = findViewById(R.id.queueList)
 
@@ -46,6 +47,61 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, PatientsActivity::class.java))
         }
         findViewById<View>(R.id.logout).setOnClickListener { confirmLogout() }
+        findViewById<View>(R.id.diag).setOnClickListener { showDiagnostics() }
+    }
+
+    /** Diagnostik: antrean log lokal, kirim paksa, hapus antrean. */
+    private fun showDiagnostics() {
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, 0)
+        }
+        val info = TextView(this).apply {
+            setTextColor(getColor(R.color.fg2))
+            textSize = 12.5f
+        }
+        box.addView(info)
+
+        val logs = TextView(this).apply {
+            setTextColor(getColor(R.color.muted))
+            textSize = 10.5f
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(0, pad / 2, 0, 0)
+        }
+        box.addView(logs)
+
+        fun refresh() {
+            val n = Log.pending()
+            info.text = if (n == 0) "Antrean log kosong. v${BuildConfig.VERSION_NAME}"
+            else "Antrean: $n log menunggu dikirim.  v${BuildConfig.VERSION_NAME}"
+            logs.text = Log.tail(8).joinToString("\n\n").ifBlank { "Tidak ada log lokal." }
+        }
+        refresh()
+
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("Diagnostik")
+            .setView(box)
+            .setPositiveButton("Kirim sekarang") { _, _ ->
+                Thread {
+                    val sent = Log.flush()
+                    runOnUiThread {
+                        refresh()
+                        android.widget.Toast.makeText(
+                            this, if (sent > 0) "$sent log terkirim" else "Belum ada yang terkirim",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+            .setNeutralButton("Hapus antrean") { _, _ ->
+                Log.clearQueue()
+                refresh()
+            }
+            .setNegativeButton("Tutup", null)
+            .create()
+        dlg.setOnShowListener { refresh() }
+        dlg.show()
     }
 
     override fun onResume() {

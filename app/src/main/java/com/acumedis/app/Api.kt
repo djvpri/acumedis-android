@@ -91,6 +91,7 @@ object Api {
             JSONObject(text)
             if (code in 200..299) text else null
         } catch (e: Exception) {
+            Log.error("network", "request $method $path gagal: ${e.javaClass.simpleName}", e)
             null
         } finally {
             c?.disconnect()
@@ -121,6 +122,7 @@ object Api {
             val (code, text) = read(c)
             if (code in 200..299) text else null
         } catch (e: Exception) {
+            Log.error("network", "postPublic $path gagal: ${e.javaClass.simpleName}", e)
             null
         } finally {
             c?.disconnect()

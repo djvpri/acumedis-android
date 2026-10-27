@@ -316,10 +316,24 @@
                 android:visibility="gone" />
 
             <TextView
+                android:id="@+id/diag"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_card"
+                android:layout_marginTop="18dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Diagnostik"
+                android:textColor="@color/fg2"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
                 android:id="@+id/logout"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="18dp"
+                android:layout_marginTop="10dp"
                 android:background="@drawable/bg_card"
                 android:clickable="true"
                 android:focusable="true"
