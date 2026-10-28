@@ -274,6 +274,37 @@
                 <Space android:layout_width="8dp" android:layout_height="1dp" />
 
                 <LinearLayout
+                    android:id="@+id/qFinance"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_card"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_refresh" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:text="Keuangan"
+                        android:textColor="@color/fg2"
+                        android:textSize="9.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <Space android:layout_width="8dp" android:layout_height="1dp" />
+
+                <LinearLayout
                     android:id="@+id/qRefresh"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"

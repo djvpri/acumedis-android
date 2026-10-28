@@ -71,6 +71,10 @@ object SessionSheet {
         col.addView(
             text(act, Fmt.rupiah(v.fee), 14f, R.color.fg, bold = true)
         )
+        // sesi yang dibayar bertahap harus terlihat sisanya, bukan cuma "sebagian"
+        if (v.paidAmount > 0 && v.balance > 0) {
+            col.addView(text(act, "Dibayar " + Fmt.rupiah(v.paidAmount) + " · sisa " + Fmt.rupiah(v.balance), 12f, R.color.amber))
+        }
         v.notes?.let { col.addView(label(act, "Catatan")); col.addView(text(act, it, 13f, R.color.fg2)) }
 
         // --- foto lidah ---
@@ -111,15 +115,11 @@ object SessionSheet {
         // --- aksi ---
         val row1 = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
         row1.addView(
-            button(act, if (v.payment == "paid") "Tandai belum" else "Tandai lunas", primary = true) {
-                val next = if (v.payment == "paid") "unpaid" else "paid"
-                Api.io.execute {
-                    val ok = Api.setPayment(act, v.id, next)
-                    act.runOnUiThread {
-                        if (act.isFinishing) return@runOnUiThread
-                        toast(act, if (ok) "Status pembayaran diperbarui" else "Gagal memperbarui")
-                        if (ok) { d.dismiss(); onChanged() }
-                    }
+            button(act, if (v.payment == "paid") "Sudah lunas" else "Bayar", primary = v.payment != "paid") {
+                if (v.payment == "paid") {
+                    toast(act, "Sesi ini sudah lunas")
+                } else {
+                    PaySheet.show(act, v) { d.dismiss(); onChanged() }
                 }
             },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = 8 }

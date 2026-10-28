@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.qSchedule).setOnClickListener {
             startActivity(Intent(this, AppointmentsActivity::class.java))
         }
+        findViewById<View>(R.id.qFinance).setOnClickListener {
+            startActivity(Intent(this, FinanceActivity::class.java))
+        }
         findViewById<View>(R.id.logout).setOnClickListener { confirmLogout() }
         findViewById<View>(R.id.settingsBtn).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))

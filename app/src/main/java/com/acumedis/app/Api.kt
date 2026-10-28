@@ -333,6 +333,24 @@ object Api {
     fun setPayment(ctx: Context, sessionId: String, status: String): Boolean =
         request(ctx, "/v1/sessions/$sessionId/payment", "PATCH", JSONObject().put("payment_status", status)) != null
 
+    /** Catat satu pembayaran; server menghitung ulang status sesi dari totalnya. */
+    fun pay(ctx: Context, sessionId: String, amount: Double, method: String, note: String? = null): Pair<Boolean, String?> {
+        val body = JSONObject().put("amount", amount).put("method", method)
+        if (!note.isNullOrBlank()) body.put("note", note)
+        val r = requestEx(ctx, "/v1/sessions/$sessionId/payments", "POST", body)
+            ?: return Pair(false, "Tidak bisa menghubungi server")
+        if (r.first in 200..299) return Pair(true, null)
+        val msg = runCatching { JSONObject(r.second).optString("error") }.getOrNull()
+        return Pair(false, msg?.ifBlank { null } ?: "Gagal menyimpan pembayaran (HTTP ${r.first})")
+    }
+
+    fun finance(ctx: Context, from: String, to: String): JSONObject? =
+        request(ctx, "/v1/finance?from=$from&to=$to&tz=${tzMinutes()}", "GET")
+            ?.let { runCatching { JSONObject(it) }.getOrNull() }
+
+    fun addExpense(ctx: Context, body: JSONObject): Boolean =
+        request(ctx, "/v1/expenses", "POST", body) != null
+
     fun updateSession(ctx: Context, id: String, body: JSONObject): Boolean =
         request(ctx, "/v1/sessions/$id", "PATCH", body) != null
 
@@ -403,6 +421,8 @@ data class Visit(
     val duration: Int?,
     val fee: Double?,
     val payment: String,
+    val paidAmount: Double = 0.0,
+    val balance: Double = 0.0,
     val tongueColor: String? = null,
     val notes: String? = null,
     val painScale: Int? = null,
@@ -457,6 +477,8 @@ data class Visit(
                 duration = if (o.isNull("duration_minutes")) null else o.optInt("duration_minutes"),
                 fee = if (o.isNull("fee")) null else o.optDouble("fee"),
                 payment = o.str("payment_status") ?: "unpaid",
+                paidAmount = if (o.isNull("paid_amount")) 0.0 else o.optDouble("paid_amount", 0.0),
+                balance = if (o.isNull("balance")) 0.0 else o.optDouble("balance", 0.0),
                 tongueColor = o.str("tongue_color"),
                 notes = o.str("notes"),
                 painScale = if (o.isNull("pain_scale")) null else o.optInt("pain_scale"),
