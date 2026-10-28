@@ -277,6 +277,14 @@ object Api {
     fun createPatient(ctx: Context, body: JSONObject): Boolean =
         request(ctx, "/v1/patients", "POST", body) != null
 
+    fun patient(ctx: Context, id: String): Patient? =
+        request(ctx, "/v1/patients/$id", "GET")?.let {
+            runCatching { Patient.from(JSONObject(it).getJSONObject("patient")) }.getOrNull()
+        }
+
+    fun updatePatient(ctx: Context, id: String, body: JSONObject): Boolean =
+        request(ctx, "/v1/patients/$id", "PATCH", body) != null
+
     fun createSession(ctx: Context, body: JSONObject): Boolean =
         request(ctx, "/v1/sessions", "POST", body) != null
 
@@ -300,7 +308,10 @@ data class Patient(
     val phone: String?,
     val birthDate: String?,
     val totalSessions: Int,
-    val lastSession: String?
+    val lastSession: String?,
+    val email: String? = null,
+    val address: String? = null,
+    val note: String? = null
 ) {
     fun initials(): String = name.trim().split(" ").filter { it.isNotBlank() }
         .take(2).joinToString("") { it.first().uppercase() }
@@ -313,7 +324,10 @@ data class Patient(
             phone = o.optString("phone").ifBlank { null },
             birthDate = o.optString("birth_date").ifBlank { null },
             totalSessions = o.optInt("total_sessions", 0),
-            lastSession = o.optString("last_session_date").ifBlank { null }
+            lastSession = o.optString("last_session_date").ifBlank { null },
+            email = o.optString("email").ifBlank { null },
+            address = o.optString("address").ifBlank { null },
+            note = o.optString("note").ifBlank { null }
         )
     }
 }
@@ -376,5 +390,19 @@ object Fmt {
         if (v == null) return "-"
         val n = v.toLong()
         return "Rp " + n.toString().reversed().chunked(3).joinToString(".").reversed()
+    }
+
+    /** "1990-05-17" → "34 th" (perkiraan; cukup untuk kartu pasien). */
+    fun umur(iso: String?): String {
+        if (iso.isNullOrBlank() || iso.length < 10) return "-"
+        val y = iso.substring(0, 4).toIntOrNull() ?: return "-"
+        val m = iso.substring(5, 7).toIntOrNull() ?: return "-"
+        val d = iso.substring(8, 10).toIntOrNull() ?: return "-"
+        val now = java.util.Calendar.getInstance()
+        var age = now.get(java.util.Calendar.YEAR) - y
+        val before = now.get(java.util.Calendar.MONTH) + 1 < m ||
+            (now.get(java.util.Calendar.MONTH) + 1 == m && now.get(java.util.Calendar.DAY_OF_MONTH) < d)
+        if (before) age--
+        return if (age in 0..130) "$age th" else "-"
     }
 }

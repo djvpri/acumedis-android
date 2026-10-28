@@ -27,6 +27,7 @@ class PatientDetailActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.sub).text = "Rekam medis"
 
         findViewById<View>(R.id.back).setOnClickListener { finish() }
+        findViewById<View>(R.id.edit).setOnClickListener { editPatient() }
         findViewById<View>(R.id.newSession).setOnClickListener {
             startActivity(
                 Intent(this, SessionFormActivity::class.java)
@@ -41,6 +42,40 @@ class PatientDetailActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         load()
+    }
+
+    /** Ubah data pasien; judul ikut diperbarui kalau namanya berubah. */
+    private fun editPatient() {
+        Api.io.execute {
+            val p = Api.patient(this, patientId)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                if (p == null) {
+                    android.widget.Toast
+                        .makeText(this, "Data pasien tidak terbaca", android.widget.Toast.LENGTH_SHORT).show()
+                    return@runOnUiThread
+                }
+                PatientForm.show(this, p) { saved ->
+                    if (saved != null) {
+                        patientId = saved.id
+                        patientName = saved.name
+                        findViewById<TextView>(R.id.title).text = saved.name
+                        showMeta(saved)
+                    }
+                    load()
+                }
+            }
+        }
+    }
+
+    /** Baris kecil di bawah nama: jenis kelamin, umur, telepon. */
+    private fun showMeta(p: Patient) {
+        val bits = mutableListOf<String>()
+        p.gender?.let { bits.add(if (it == "male") "Laki-laki" else "Perempuan") }
+        p.birthDate?.let { bits.add(Fmt.umur(it)) }
+        p.phone?.let { bits.add(it) }
+        findViewById<TextView>(R.id.sub).text =
+            if (bits.isEmpty()) "Rekam medis" else bits.joinToString(" · ")
     }
 
     private fun load() {

@@ -104,38 +104,6 @@ class PatientsActivity : AppCompatActivity() {
     }
 
     private fun addPatient() {
-        val pad = (16 * resources.displayMetrics.density).toInt()
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(pad, pad / 2, pad, 0)
-        }
-        val fName = EditText(this).apply { hint = "Nama lengkap" }
-        val fPhone = EditText(this).apply { hint = "Nomor telepon" ; inputType = android.text.InputType.TYPE_CLASS_PHONE }
-        val fAddress = EditText(this).apply { hint = "Alamat (opsional)" }
-        box.addView(fName)
-        box.addView(fPhone)
-        box.addView(fAddress)
-
-        AlertDialog.Builder(this)
-            .setTitle("Pasien baru")
-            .setView(box)
-            .setNegativeButton("Batal", null)
-            .setPositiveButton("Simpan") { _, _ ->
-                val name = fName.text.toString().trim()
-                if (name.isEmpty()) return@setPositiveButton
-                val body = org.json.JSONObject()
-                    .put("name", name)
-                    .put("phone", fPhone.text.toString().trim())
-                    .put("address", fAddress.text.toString().trim())
-                Api.io.execute {
-                    val ok = Api.createPatient(this, body)
-                    runOnUiThread {
-                        if (ok) load(findViewById(R.id.list))
-                        else android.widget.Toast
-                            .makeText(this, "Gagal simpan pasien", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            .show()
+        PatientForm.show(this, null) { load(findViewById(R.id.list)) }
     }
 }
