@@ -93,6 +93,17 @@ class PatientDetailActivity : AppCompatActivity() {
                     )
                     pay.setTextColor(getColor(if (paid) R.color.green else R.color.amber))
 
+                    // tombol nota: satu baris riwayat = satu kwitansi
+                    val notaBtn = row.findViewById<TextView>(R.id.notaBtn)
+                    notaBtn.visibility = View.VISIBLE
+                    notaBtn.setOnClickListener {
+                        NotaSheet.show(
+                            this,
+                            Patient(patientId, patientName, null, null, null, 0, null),
+                            v
+                        )
+                    }
+
                     list.addView(row)
                 }
             }

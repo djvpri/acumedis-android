@@ -48,7 +48,82 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.logout).setOnClickListener { confirmLogout() }
         findViewById<View>(R.id.diag).setOnClickListener { showDiagnostics() }
+        findViewById<View>(R.id.update).setOnClickListener { checkUpdate(manual = true) }
+        autoCheckUpdate()
     }
+
+    /** Cek otomatis sekali per app start; diam kalau sudah versi terbaru. */
+    private fun autoCheckUpdate() {
+        Thread {
+            val latest = Updater.fetchLatest() ?: return@Thread
+            if (!Updater.isNewer(latest.version, BuildConfig.VERSION_NAME)) return@Thread
+            runOnUiThread { offerUpdate(latest) }
+        }.start()
+    }
+
+    /** Tombol manual: selalu beri tahu hasilnya, termasuk "sudah terbaru". */
+    private fun checkUpdate(manual: Boolean) {
+        val label = findViewById<TextView>(R.id.update)
+        label.text = "Memeriksa…"
+        Thread {
+            val latest = Updater.fetchLatest()
+            runOnUiThread {
+                label.text = "Cek update terbaru"
+                when {
+                    latest == null -> toast("Tidak dapat memeriksa update. Cek koneksi.")
+                    Updater.isNewer(latest.version, BuildConfig.VERSION_NAME) -> offerUpdate(latest)
+                    else -> toast("Sudah versi terbaru (v${BuildConfig.VERSION_NAME})")
+                }
+            }
+        }.start()
+    }
+
+    private fun offerUpdate(r: Updater.Release) {
+        val notes = r.notes.lines().filter { it.isNotBlank() }.take(6)
+            .joinToString("\n") { "• " + it.trim().removePrefix("-").trim() }
+            .ifBlank { "Perbaikan dan peningkatan." }
+
+        AlertDialog.Builder(this)
+            .setTitle("Versi ${r.version} tersedia")
+            .setMessage("Kamu memakai v${BuildConfig.VERSION_NAME}.\n\n$notes")
+            .setNegativeButton("Nanti", null)
+            .setPositiveButton("Unduh & pasang") { _, _ -> downloadAndInstall(r) }
+            .show()
+    }
+
+    private fun downloadAndInstall(r: Updater.Release) {
+        val bar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("Mengunduh v${r.version}")
+            .setView(bar)
+            .setCancelable(false)
+            .setNegativeButton("Batal", null)
+            .create()
+        dlg.show()
+
+        Thread {
+            val apk = Updater.download(this, r) { pct ->
+                runOnUiThread { bar.progress = pct }
+            }
+            runOnUiThread {
+                dlg.dismiss()
+                if (apk == null) {
+                    toast("Unduhan gagal. Coba lagi.")
+                } else {
+                    runCatching { Updater.install(this, apk) }.onFailure {
+                        toast("Tidak bisa membuka pemasang. Aktifkan \"Instal aplikasi tak dikenal\" untuk AcuMedis.")
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun toast(msg: String) =
+        android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
 
     /** Diagnostik: antrean log lokal, kirim paksa, hapus antrean. */
     private fun showDiagnostics() {
@@ -111,6 +186,18 @@ class MainActivity : AppCompatActivity() {
             finish()
             return
         }
+        // isi identitas klinik dari server (dipakai di kepala nota)
+        Thread {
+            val me = Api.me(this) ?: return@Thread
+            val t = me.optJSONObject("tenant") ?: return@Thread
+            Creds.saveClinic(
+                this,
+                t.optString("clinicName").ifBlank { t.optString("name") },
+                t.optString("address"),
+                t.optString("phone")
+            )
+        }.start()
+
         load()
     }
 

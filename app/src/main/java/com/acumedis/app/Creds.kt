@@ -80,6 +80,19 @@ object Creds {
 
     fun has(ctx: Context): Boolean = email(ctx).isNotEmpty() && password(ctx).isNotEmpty()
 
+    // ---------- identitas klinik untuk kepala nota ----------
+    fun clinicName(ctx: Context): String = prefs(ctx).getString("nota_clinic", "") ?: ""
+    fun clinicAddress(ctx: Context): String = prefs(ctx).getString("nota_address", "") ?: ""
+    fun clinicPhone(ctx: Context): String = prefs(ctx).getString("nota_phone", "") ?: ""
+
+    fun saveClinic(ctx: Context, name: String, address: String, phone: String) {
+        prefs(ctx).edit()
+            .putString("nota_clinic", name.trim())
+            .putString("nota_address", address.trim())
+            .putString("nota_phone", phone.trim())
+            .apply()
+    }
+
     fun clear(ctx: Context) {
         prefs(ctx).edit().remove(KEY_EMAIL).remove(KEY_PASS).apply()
     }

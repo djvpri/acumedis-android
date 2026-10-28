@@ -69,4 +69,23 @@
         android:paddingBottom="4dp"
         android:textSize="10sp"
         android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/notaBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/bg_pill"
+        android:backgroundTint="@color/soft"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingStart="8dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="4dp"
+        android:text="Nota"
+        android:textColor="@color/primary_deep"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 </LinearLayout>

@@ -257,6 +257,14 @@ object Api {
 
     fun setPayment(ctx: Context, sessionId: String, status: String): Boolean =
         request(ctx, "/v1/sessions/$sessionId/payment", "PATCH", JSONObject().put("payment_status", status)) != null
+
+    fun session(ctx: Context, id: String): Visit? =
+        request(ctx, "/v1/sessions/$id", "GET")?.let {
+            runCatching { Visit.from(JSONObject(it).getJSONObject("session")) }.getOrNull()
+        }
+
+    fun me(ctx: Context): JSONObject? =
+        request(ctx, "/v1/me", "GET")?.let { runCatching { JSONObject(it) }.getOrNull() }
 }
 
 /** Pasien dari /v1/patients. */
