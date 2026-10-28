@@ -84,6 +84,24 @@ class FinanceActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.expense).text = Fmt.rupiah(j.optDouble("expense", 0.0))
         findViewById<TextView>(R.id.receivable).text = Fmt.rupiah(j.optDouble("receivables_total", 0.0))
 
+        // grafik harian
+        findViewById<DayChartView>(R.id.chart).setDays(j.optJSONArray("days"))
+
+        // pendapatan per praktisi
+        val prac = findViewById<LinearLayout>(R.id.practitioners)
+        prac.removeAllViews()
+        val bp = j.optJSONObject("by_practitioner")
+        var anyPrac = false
+        if (bp != null) {
+            for (k in bp.keys()) {
+                val amount = bp.optDouble(k, 0.0)
+                if (amount <= 0) continue
+                anyPrac = true
+                prac.addView(row(k, Fmt.rupiah(amount), R.color.fg, bold = false))
+            }
+        }
+        if (!anyPrac) prac.addView(empty("Belum ada pendapatan di periode ini"))
+
         // cara bayar
         val methods = findViewById<LinearLayout>(R.id.methods)
         methods.removeAllViews()
@@ -127,7 +145,14 @@ class FinanceActivity : AppCompatActivity() {
                 val name = o.optString("patient_name").ifBlank { "Pasien" }
                 val balance = o.optDouble("balance", 0.0)
                 val date = Fmt.tanggal(o.optString("session_date"))
-                rec.addView(row("$name · $date", Fmt.rupiah(balance), R.color.amber, bold = false))
+                // ketuk piutang → tawarkan tagih lewat WhatsApp
+                val r = row("$name · $date", Fmt.rupiah(balance), R.color.amber, bold = false)
+                val phone = o.optString("phone")
+                if (phone.isNotBlank()) {
+                    r.isClickable = true
+                    r.setOnClickListener { remind(name, phone, balance) }
+                }
+                rec.addView(r)
             }
         }
     }
@@ -154,6 +179,35 @@ class FinanceActivity : AppCompatActivity() {
         setTextColor(getColor(R.color.muted))
         textSize = 12f
         setPadding(0, (6 * resources.displayMetrics.density).toInt(), 0, 0)
+    }
+
+    /**
+     * Tagih lewat WhatsApp. wa.me membuka WhatsApp dengan pesan siap kirim —
+     * pengguna tetap menekan kirim sendiri, jadi tidak ada pesan terkirim tanpa
+     * sepengetahuannya, dan tidak perlu API berbayar.
+     */
+    private fun remind(name: String, phone: String, balance: Double) {
+        val bersih = phone.replace(Regex("[^0-9+]"), "")
+        val nomor = when {
+            bersih.startsWith("+62") -> bersih.substring(1)
+            bersih.startsWith("62") -> bersih
+            bersih.startsWith("0") -> "62" + bersih.substring(1)
+            else -> bersih
+        }
+        val clinic = Creds.clinicName(this).ifBlank { Api.clinicName(this) }
+        val pesan = "Halo $name, terima kasih sudah berobat di $clinic. " +
+            "Ada sisa pembayaran sebesar ${Fmt.rupiah(balance)} yang belum tercatat lunas. " +
+            "Silakan diselesaikan saat kunjungan berikutnya. Terima kasih."
+
+        val wa = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("https://wa.me/$nomor?text=" + android.net.Uri.encode(pesan))
+        )
+        // kalau WhatsApp tidak terpasang, jangan matikan app
+        runCatching { startActivity(wa) }
+            .onFailure {
+                android.widget.Toast.makeText(this, "WhatsApp tidak terpasang", android.widget.Toast.LENGTH_SHORT).show()
+            }
     }
 
     /** Catat pengeluaran; kategori dipilih supaya laporan bisa dijumlah. */
