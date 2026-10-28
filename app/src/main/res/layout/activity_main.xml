@@ -228,7 +228,7 @@
                         android:layout_width="22dp"
                         android:layout_height="22dp"
                         android:contentDescription="@null"
-                        android:src="@drawable/ic_session" />
+                        android:src="@drawable/ic_sesi_baru" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -259,7 +259,7 @@
                         android:layout_width="22dp"
                         android:layout_height="22dp"
                         android:contentDescription="@null"
-                        android:src="@drawable/ic_session" />
+                        android:src="@drawable/ic_jadwal" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -290,7 +290,7 @@
                         android:layout_width="22dp"
                         android:layout_height="22dp"
                         android:contentDescription="@null"
-                        android:src="@drawable/ic_refresh" />
+                        android:src="@drawable/ic_keuangan" />
 
                     <TextView
                         android:layout_width="wrap_content"
