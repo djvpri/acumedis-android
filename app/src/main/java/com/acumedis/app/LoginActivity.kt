@@ -74,7 +74,13 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun renderRemember() {
-        remember.text = if (rememberOn) "✓  Ingat email & password" else "○  Jangan ingat password"
+        // tanda centang digambar sebagai drawable, bukan karakter ✓/○ yang
+        // tampil beda-beda (bahkan rusak) tergantung font perangkat
+        remember.setCompoundDrawablesWithIntrinsicBounds(
+            if (rememberOn) R.drawable.ic_check_box else R.drawable.ic_check_box_off,
+            0, 0, 0
+        )
+        remember.text = if (rememberOn) "  Ingat email & password" else "  Jangan ingat password"
         remember.setTextColor(getColor(if (rememberOn) R.color.green else R.color.muted))
     }
 
