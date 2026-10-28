@@ -83,16 +83,20 @@ object Api {
     ): String? {
         var c: HttpURLConnection? = null
         return try {
+            val usedToken = if (auth) accessToken(ctx) else ""
             c = conn(ctx, path, method, auth)
             if (body != null && method != "GET") c.outputStream.use { it.write(body.toString().toByteArray()) }
             val (code, text) = read(c)
 
             // access token kedaluwarsa → coba refresh sekali
-            if (code == 401 && auth && !retried && refresh(ctx)) {
+            if (code == 401 && auth && !retried && refresh(ctx, usedToken)) {
                 return request(ctx, path, method, body, auth, retried = true)
             }
-            JSONObject(text)
-            if (code in 200..299) text else null
+            if (code in 200..299) return text
+
+            // kegagalan HTTP dicatat: tanpa ini toast "Gagal" tidak bisa ditelusuri
+            Log.error("http", "$method $path → HTTP $code: " + text.take(300))
+            null
         } catch (e: Exception) {
             Log.error("network", "request $method $path gagal: ${e.javaClass.simpleName}", e)
             null
@@ -126,12 +130,23 @@ object Api {
         }
     }
 
-    /** Rotasi token. True kalau dapat access token baru. */
-    fun refresh(ctx: Context): Boolean {
+    /**
+     * Rotasi token. True kalau dapat access token baru.
+     *
+     * Diserialkan: beberapa request paralel bisa kena 401 bersamaan. Tanpa kunci,
+     * semuanya memakai refresh token yang sama — server merotasi (token lama
+     * dicabut) dan yang kalah langsung 401. Kalau thread lain sudah memperbarui
+     * token, cukup pakai hasilnya.
+     */
+    private val refreshLock = Any()
+
+    fun refresh(ctx: Context, staleToken: String? = null): Boolean = synchronized(refreshLock) {
+        if (staleToken != null && accessToken(ctx) != staleToken) return true
+
         val rt = refreshToken(ctx)
         if (rt.isEmpty()) return false
         val raw = postPublic(ctx, "/v1/auth/refresh", JSONObject().put("refreshToken", rt)) ?: return false
-        return runCatching {
+        runCatching {
             val o = JSONObject(raw)
             if (!o.optBoolean("ok")) return false
             prefs(ctx).edit()
