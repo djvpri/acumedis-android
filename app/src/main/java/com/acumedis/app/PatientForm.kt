@@ -1,6 +1,7 @@
 package com.acumedis.app
 
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.text.InputType
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -9,6 +10,7 @@ import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import org.json.JSONObject
+import java.util.Calendar
 
 /**
  * Satu formulir dipakai untuk pasien baru dan ubah data pasien, supaya
@@ -33,7 +35,40 @@ object PatientForm {
 
         val fName = field("Nama lengkap", existing?.name)
         val fPhone = field("Nomor telepon", existing?.phone, phone = true)
-        val fBirth = field("Tanggal lahir (mis. 1990-05-17)", existing?.birthDate)
+
+        // tanggal lahir dipilih dari kalender, bukan diketik: format tidak bisa salah
+        var birth = existing?.birthDate.orEmpty()
+        val fBirth = EditText(act).apply {
+            hint = "Tanggal lahir"
+            isFocusable = false            // ketuk = buka kalender
+            isClickable = true
+            setText(if (birth.isBlank()) "" else Fmt.tanggal(birth))
+        }
+        fBirth.setOnClickListener {
+            val c = Calendar.getInstance().apply {
+                val p = birth.split("-")
+                if (p.size == 3) {
+                    set(
+                        p[0].toIntOrNull() ?: 1990,
+                        (p[1].toIntOrNull() ?: 1) - 1,
+                        p[2].toIntOrNull() ?: 1
+                    )
+                } else {
+                    set(1990, Calendar.JANUARY, 1)   // tanggal lahir tidak mungkin hari ini
+                }
+            }
+            val dlg = DatePickerDialog(act, { _, y, m, d ->
+                birth = String.format("%04d-%02d-%02d", y, m + 1, d)
+                fBirth.setText(Fmt.tanggal(birth))
+            }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH))
+            dlg.datePicker.maxDate = System.currentTimeMillis()   // tidak boleh tanggal masa depan
+            dlg.setButton(android.content.DialogInterface.BUTTON_NEUTRAL, "Kosongkan") { _, _ ->
+                birth = ""
+                fBirth.setText("")
+            }
+            dlg.show()
+        }
+
         val fEmail = field("Email (opsional)", existing?.email)
         val fAddress = field("Alamat (opsional)", existing?.address, lines = 2)
         val fNote = field("Catatan (opsional)", existing?.note, lines = 2)
@@ -72,7 +107,7 @@ object PatientForm {
                 val body = JSONObject()
                     .put("name", name)
                     .put("phone", fPhone.text.toString().trim())
-                    .put("birth_date", fBirth.text.toString().trim())
+                    .put("birth_date", birth)
                     .put("email", fEmail.text.toString().trim())
                     .put("address", fAddress.text.toString().trim())
                     .put("note", fNote.text.toString().trim())
