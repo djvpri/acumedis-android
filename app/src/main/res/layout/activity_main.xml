@@ -316,6 +316,20 @@
                 android:visibility="gone" />
 
             <TextView
+                android:id="@+id/settingsBtn"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_card"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Pengaturan"
+                android:textColor="@color/fg2"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
                 android:id="@+id/update"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"

@@ -77,7 +77,7 @@ object Api {
         return code to text
     }
 
-    private fun request(
+    fun request(
         ctx: Context, path: String, method: String,
         body: JSONObject? = null, auth: Boolean = true, retried: Boolean = false
     ): String? {

@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.logout).setOnClickListener { confirmLogout() }
         findViewById<View>(R.id.diag).setOnClickListener { showDiagnostics() }
         findViewById<View>(R.id.update).setOnClickListener { checkUpdate(manual = true) }
+        findViewById<View>(R.id.settingsBtn).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         autoCheckUpdate()
     }
 
