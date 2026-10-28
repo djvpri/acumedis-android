@@ -20,6 +20,8 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var fError: TextView
     private lateinit var btn: TextView
     private lateinit var ssoBtn: TextView
+    private lateinit var remember: TextView
+    private var rememberOn = true
 
     private val ui = Handler(Looper.getMainLooper())
     private var ssoDialog: AlertDialog? = null
@@ -36,16 +38,44 @@ class LoginActivity : AppCompatActivity() {
         fError = findViewById(R.id.error)
         btn = findViewById(R.id.loginBtn)
         ssoBtn = findViewById(R.id.ssoBtn)
+        remember = findViewById(R.id.rememberLabel)
         findViewById<TextView>(R.id.version).text = "v${BuildConfig.VERSION_NAME}"
 
         fBase.setText(Api.baseUrl(this).ifBlank { Api.DEFAULT_BASE })
         btn.setOnClickListener { doLogin() }
-        ssoBtn.setOnClickListener { doSso() }
+        // tombol SSO Z One disembunyikan; jalur kode masih ada di kode (Log/API) kalau nanti diaktifkan lagi
         // tekan lama kolom alamat → kembalikan ke server bawaan
         fBase.setOnLongClickListener { resetBaseToDefault(); true }
 
+        setupRemember()
+
         if (Api.isLoggedIn(this)) goMain()
         handleDeepLink(intent)
+    }
+
+    /** Isi email/password tersimpan + atur chip "Ingat". */
+    private fun setupRemember() {
+        rememberOn = Creds.has(this)
+        if (rememberOn) {
+            fEmail.setText(Creds.email(this))
+            fPass.setText(Creds.password(this))
+        }
+        renderRemember()
+        remember.setOnClickListener {
+            rememberOn = !rememberOn
+            if (!rememberOn) Creds.clear(this)
+            renderRemember()
+        }
+        // menyentuh kolom password = user berniat mengganti sendiri
+        fPass.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && fPass.text.isNullOrEmpty()) rememberOn = true
+            renderRemember()
+        }
+    }
+
+    private fun renderRemember() {
+        remember.text = if (rememberOn) "✓  Ingat email & password" else "○  Jangan ingat password"
+        remember.setTextColor(getColor(if (rememberOn) R.color.green else R.color.muted))
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -95,7 +125,10 @@ class LoginActivity : AppCompatActivity() {
             runOnUiThread {
                 btn.isEnabled = true
                 btn.text = "Masuk"
-                if (err == null) goMain() else fail(err)
+                if (err == null) {
+                    if (rememberOn) Creds.save(this, email, pass) else Creds.clear(this)
+                    goMain()
+                } else fail(err)
             }
         }
     }

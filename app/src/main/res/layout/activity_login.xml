@@ -72,6 +72,17 @@
             android:importantForAutofill="no" />
 
         <TextView
+            android:id="@+id/rememberLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:drawablePadding="8dp"
+            android:gravity="center_vertical"
+            android:text="Ingat email &amp; password"
+            android:textColor="@color/fg2"
+            android:textSize="12.5sp" />
+
+        <TextView
             android:id="@+id/error"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -107,7 +118,8 @@
             android:text="Masuk dengan Z One"
             android:textColor="@color/primary_deep"
             android:textSize="14.5sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/version"

@@ -119,6 +119,12 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Keluar akun?")
             .setMessage("Sesi di perangkat ini dihapus. Data tetap aman di server.")
             .setNegativeButton("Batal", null)
+            .setNeutralButton("Keluar & hapus sandi") { _, _ ->
+                Api.logout(this)
+                Creds.clear(this)
+                startActivity(Intent(this, LoginActivity::class.java))
+                finish()
+            }
             .setPositiveButton("Keluar") { _, _ ->
                 Api.logout(this)
                 startActivity(Intent(this, LoginActivity::class.java))
