@@ -49,13 +49,13 @@ object Api {
 
     // ---------- HTTP dasar ----------
 
-    private fun conn(ctx: Context, path: String, method: String, auth: Boolean): HttpURLConnection {
+    private fun conn(ctx: Context, path: String, method: String, auth: Boolean, timeoutMs: Int = TIMEOUT): HttpURLConnection {
         val base = baseUrl(ctx)
         require(base.isNotEmpty()) { "Alamat server belum diatur" }
         return (URL(base + path).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = TIMEOUT
-            readTimeout = TIMEOUT
+            readTimeout = timeoutMs
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "AcuMedis/${BuildConfig.VERSION_NAME}")
             if (auth) {
@@ -93,6 +93,31 @@ object Api {
             }
             JSONObject(text)
             if (code in 200..299) text else null
+        } catch (e: Exception) {
+            Log.error("network", "request $method $path gagal: ${e.javaClass.simpleName}", e)
+            null
+        } finally {
+            c?.disconnect()
+        }
+    }
+
+    /**
+     * Sama seperti [request] tapi mengembalikan kode HTTP + isi balasan apa adanya,
+     * dipakai saat pemanggil perlu menampilkan pesan galat dari server (mis. analisis AI).
+     */
+    fun requestEx(
+        ctx: Context, path: String, method: String, body: JSONObject?,
+        timeoutMs: Int = TIMEOUT, retried: Boolean = false
+    ): Pair<Int, String>? {
+        var c: HttpURLConnection? = null
+        return try {
+            c = conn(ctx, path, method, true, timeoutMs)
+            if (body != null && method != "GET") c.outputStream.use { it.write(body.toString().toByteArray()) }
+            val r = read(c)
+            if (r.first == 401 && !retried && refresh(ctx)) {
+                return requestEx(ctx, path, method, body, timeoutMs, retried = true)
+            }
+            r
         } catch (e: Exception) {
             Log.error("network", "request $method $path gagal: ${e.javaClass.simpleName}", e)
             null

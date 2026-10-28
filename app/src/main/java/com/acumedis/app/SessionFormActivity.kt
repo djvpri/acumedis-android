@@ -178,11 +178,13 @@ class SessionFormActivity : AppCompatActivity() {
         aiText.text = "Menganalisis foto lidah…"
 
         Api.io.execute {
-            val res = Ai.analyzeTongue(this, packed.first, packed.second, fComplaint.text.toString())
+            val out = Ai.analyzeTongue(this, packed.first, packed.second, fComplaint.text.toString())
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
+                val res = out.tongue
                 if (res == null) {
-                    aiText.text = "Analisis gagal. Periksa koneksi atau kunci AI di server."
+                    aiText.text = "Analisis gagal: " + (out.error ?: "tidak diketahui")
+                    Log.error("ai", "analisis lidah gagal: ${out.error}")
                     return@runOnUiThread
                 }
                 ai = res
