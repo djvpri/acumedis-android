@@ -39,7 +39,65 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<View>(R.id.saveBtn).setOnClickListener { saveClinic() }
         findViewById<View>(R.id.addStaff).setOnClickListener { editStaff(null) }
 
+        val updateBtn = findViewById<TextView>(R.id.updateBtn)
+        updateBtn.setOnClickListener {
+            updateBtn.text = "Memeriksa…"
+            Updates.check(this) { updateBtn.text = "Cek update terbaru" }
+        }
+        findViewById<View>(R.id.diagBtn).setOnClickListener { showDiagnostics() }
+
         load()
+    }
+
+    /** Diagnostik: antrean log lokal, kirim paksa, hapus antrean. */
+    private fun showDiagnostics() {
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, 0)
+        }
+        val info = TextView(this).apply {
+            setTextColor(getColor(R.color.fg2))
+            textSize = 12.5f
+        }
+        box.addView(info)
+
+        val logs = TextView(this).apply {
+            setTextColor(getColor(R.color.muted))
+            textSize = 10.5f
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(0, pad / 2, 0, 0)
+        }
+        box.addView(logs)
+
+        fun refresh() {
+            val n = Log.pending()
+            info.text = if (n == 0) "Antrean log kosong. v${BuildConfig.VERSION_NAME}"
+            else "Antrean: $n log menunggu dikirim.  v${BuildConfig.VERSION_NAME}"
+            logs.text = Log.tail(8).joinToString("\n\n").ifBlank { "Tidak ada log lokal." }
+        }
+        refresh()
+
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("Diagnostik")
+            .setView(box)
+            .setPositiveButton("Kirim sekarang") { _, _ ->
+                Thread {
+                    val sent = Log.flush()
+                    runOnUiThread {
+                        refresh()
+                        toast(if (sent > 0) "$sent log terkirim" else "Belum ada yang terkirim")
+                    }
+                }
+            }
+            .setNeutralButton("Hapus antrean") { _, _ ->
+                Log.clearQueue()
+                refresh()
+            }
+            .setNegativeButton("Tutup", null)
+            .create()
+        dlg.setOnShowListener { refresh() }
+        dlg.show()
     }
 
     private fun load() {

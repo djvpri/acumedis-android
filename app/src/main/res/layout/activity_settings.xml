@@ -140,6 +140,33 @@
                 android:textColor="@color/primary_deep"
                 android:textSize="13.5sp"
                 android:textStyle="bold" />
+            <TextView
+                android:id="@+id/updateBtn"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="26dp"
+                android:background="@drawable/bg_input"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Cek update terbaru"
+                android:textColor="@color/primary_deep"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/diagBtn"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_input"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Diagnostik"
+                android:textColor="@color/fg2"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
