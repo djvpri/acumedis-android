@@ -120,9 +120,9 @@ class MainActivity : AppCompatActivity() {
             val t = me.optJSONObject("tenant") ?: return@Thread
             Creds.saveClinic(
                 this,
-                t.optString("clinicName").ifBlank { t.optString("name") },
-                t.optString("address"),
-                t.optString("phone")
+                t.str("clinicName") ?: t.str("name") ?: "",
+                t.str("address") ?: "",
+                t.str("phone") ?: ""
             )
         }.start()
 

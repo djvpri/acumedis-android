@@ -300,6 +300,17 @@ object Api {
         request(ctx, "/v1/me", "GET")?.let { runCatching { JSONObject(it) }.getOrNull() }
 }
 
+/**
+ * `optString` mengembalikan string "null" kalau nilainya JSON null — itu
+ * penyebab tulisan "null" muncul di layar. Helper ini menganggap null/kosong
+ * sebagai tidak ada.
+ */
+internal fun JSONObject.str(key: String): String? {
+    if (isNull(key)) return null
+    val v = optString(key)
+    return if (v.isBlank() || v == "null") null else v
+}
+
 /** Pasien dari /v1/patients. */
 data class Patient(
     val id: String,
@@ -320,14 +331,14 @@ data class Patient(
         fun from(o: JSONObject) = Patient(
             id = o.optString("id"),
             name = o.optString("name"),
-            gender = o.optString("gender").ifBlank { null },
-            phone = o.optString("phone").ifBlank { null },
-            birthDate = o.optString("birth_date").ifBlank { null },
+            gender = o.str("gender"),
+            phone = o.str("phone"),
+            birthDate = o.str("birth_date"),
             totalSessions = o.optInt("total_sessions", 0),
-            lastSession = o.optString("last_session_date").ifBlank { null },
-            email = o.optString("email").ifBlank { null },
-            address = o.optString("address").ifBlank { null },
-            note = o.optString("note").ifBlank { null }
+            lastSession = o.str("last_session_date"),
+            email = o.str("email"),
+            address = o.str("address"),
+            note = o.str("note")
         )
     }
 }
@@ -356,11 +367,11 @@ data class Visit(
                 patientName = o.optString("patient_name"),
                 date = o.optString("session_date").take(10),
                 complaint = o.optString("chief_complaint"),
-                diagnosis = o.optString("tcm_diagnosis").ifBlank { null },
+                diagnosis = o.str("tcm_diagnosis"),
                 points = points,
                 duration = if (o.isNull("duration_minutes")) null else o.optInt("duration_minutes"),
                 fee = if (o.isNull("fee")) null else o.optDouble("fee"),
-                payment = o.optString("payment_status")
+                payment = o.str("payment_status") ?: "unpaid"
             )
         }
     }
