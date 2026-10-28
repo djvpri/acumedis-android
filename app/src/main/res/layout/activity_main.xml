@@ -66,6 +66,15 @@
             android:paddingEnd="20dp"
             android:paddingBottom="24dp">
 
+            <TextView
+                android:id="@+id/licenseBanner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:padding="12dp"
+                android:textSize="11.5sp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

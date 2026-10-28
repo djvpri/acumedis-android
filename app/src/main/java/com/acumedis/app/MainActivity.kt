@@ -56,7 +56,42 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.settingsBtn).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        checkLicense()
         Updates.checkSilently(this)
+    }
+
+    /**
+     * Spanduk lisensi. Server sudah menolak penulisan saat habis; app hanya
+     * memberi tahu lebih awal supaya tidak kaget saat menyimpan data.
+     */
+    private fun checkLicense() {
+        val banner = findViewById<TextView>(R.id.licenseBanner)
+        Api.io.execute {
+            val l = Api.license(this) ?: return@execute
+            val state = l.optString("state")
+            val days = if (l.isNull("daysLeft")) null else l.optInt("daysLeft")
+            val plan = l.optString("plan").ifBlank { "starter" }
+
+            val msg = when (state) {
+                "expired" -> "Masa lisensi berakhir. Data tetap bisa dibaca dan nota dicetak, tetapi data baru tidak bisa ditambah. Hubungi admin di Z One."
+                "grace" -> "Lisensi sudah lewat ${days?.let { -it } ?: 0} hari. Masih bisa menambah data, tapi segera perpanjang di Z One."
+                "suspended" -> "Lisensi klinik ditangguhkan. Hanya bisa membaca data. Hubungi admin di Z One."
+                else -> when {
+                    days == null -> null
+                    days <= 7 -> "Lisensi paket $plan berakhir dalam $days hari. Perpanjang di Z One."
+                    else -> null
+                }
+            } ?: return@execute
+
+            val warn = state == "grace" || (days != null && days <= 7 && state != "expired")
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                banner.text = msg
+                banner.setTextColor(getColor(if (warn) R.color.amber else R.color.red))
+                banner.setBackgroundResource(if (warn) R.drawable.bg_pill_amber else R.drawable.bg_soft_red)
+                banner.visibility = View.VISIBLE
+            }
+        }
     }
 
     /** Diagnostik: antrean log lokal, kirim paksa, hapus antrean. */

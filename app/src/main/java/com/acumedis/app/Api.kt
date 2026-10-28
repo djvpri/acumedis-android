@@ -348,6 +348,10 @@ object Api {
         request(ctx, "/v1/finance?from=$from&to=$to&tz=${tzMinutes()}", "GET")
             ?.let { runCatching { JSONObject(it) }.getOrNull() }
 
+    /** Status lisensi klinik dari server (state: active/grace/expired/suspended). */
+    fun license(ctx: Context): JSONObject? =
+        request(ctx, "/v1/license", "GET")?.let { runCatching { JSONObject(it) }.getOrNull() }
+
     fun addExpense(ctx: Context, body: JSONObject): Boolean =
         request(ctx, "/v1/expenses", "POST", body) != null
 
