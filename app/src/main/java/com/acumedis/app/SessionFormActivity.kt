@@ -40,6 +40,9 @@ class SessionFormActivity : AppCompatActivity() {
     private var ai: Ai.Tongue? = null
     private var photoFile: File? = null
 
+    /** JPEG yang sudah dikecilkan — dikirim ulang saat menyimpan sesi */
+    private var capturedJpeg: String? = null
+
     private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { analyzeUri(it) }
     }
@@ -160,6 +163,7 @@ class SessionFormActivity : AppCompatActivity() {
         if (bytes == null || bytes.isEmpty()) return toast("Gambar tidak terbaca")
 
         val packed = Ai.toJpegBase64(bytes) ?: return toast("Format gambar tidak didukung")
+        capturedJpeg = packed.first
         preview.setImageURI(null)
         preview.setImageURI(uri)
         preview.visibility = View.VISIBLE
@@ -231,6 +235,20 @@ class SessionFormActivity : AppCompatActivity() {
             .put("duration_minutes", fDuration.text.toString().trim().toIntOrNull() ?: 30)
             .put("notes", fNotes.text.toString().trim())
             .put("payment_status", if (paid) "paid" else "unpaid")
+
+        // foto lidah & hasil analisis ikut tersimpan bersama rekam medis
+        capturedJpeg?.let {
+            body.put("photo_base64", it)
+            body.put("photo_mime", "image/jpeg")
+        }
+        ai?.let { r ->
+            body.put("ai_text", aiText.text.toString())
+            body.put("ai_recommendation", JSONObject()
+                .put("tongue", r.tongue)
+                .put("diagnosis", r.diagnosis)
+                .put("treatment", r.treatment)
+                .put("points", JSONArray(r.points)))
+        }
 
         fFee.text.toString().trim().toDoubleOrNull()?.let { body.put("fee", it) }
 
