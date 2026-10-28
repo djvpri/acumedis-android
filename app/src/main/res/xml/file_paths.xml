@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="update" path="update/" />
-    <files-path name="nota" path="nota/" />
+    <!-- foto lidah dari kamera ditulis ke cache/tongue/ -->
+    <cache-path name="tongue" path="tongue/" />
+    <!-- nota juga di cache (bukan filesDir) -->
+    <cache-path name="nota" path="nota/" />
+    <files-path name="nota_files" path="nota/" />
 </paths>

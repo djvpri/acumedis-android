@@ -152,7 +152,12 @@ class SessionFormActivity : AppCompatActivity() {
         dir.listFiles()?.forEach { it.delete() }
         val f = File(dir, "tongue-${System.currentTimeMillis()}.jpg")
         photoFile = f
-        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+        // FileProvider bisa melempar IllegalArgumentException kalau path tidak
+        // terdaftar di file_paths.xml — jangan sampai aplikasi ikut mati.
+        val uri = runCatching {
+            FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+        }.getOrNull() ?: return toast("Kamera tidak bisa dibuka. Pakai \"Dari galeri\".")
+
         runCatching { takePhoto.launch(uri) }
             .onFailure { toast("Kamera tidak tersedia. Pakai \"Dari galeri\".") }
     }

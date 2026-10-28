@@ -146,9 +146,14 @@ object Nota {
 
     /** Bagikan gambar nota; [toWhatsapp] langsung ke aplikasi WhatsApp kalau terpasang. */
     fun share(ctx: Context, f: File, toWhatsapp: Boolean) {
+        // FileProvider bisa gagal (path tak terdaftar) → jangan biarkan app mati
+        val shareUri = runCatching { uri(ctx, f) }.getOrNull() ?: run {
+            android.widget.Toast.makeText(ctx, "Gagal menyiapkan gambar nota", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
-            putExtra(Intent.EXTRA_STREAM, uri(ctx, f))
+            putExtra(Intent.EXTRA_STREAM, shareUri)
             putExtra(Intent.EXTRA_TEXT, "Nota terapi")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
