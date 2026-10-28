@@ -283,11 +283,38 @@ object Api {
     }
 
     fun appointments(ctx: Context, date: String? = null): JSONArray {
-        val path = if (date.isNullOrBlank()) "/v1/appointments" else "/v1/appointments?date=$date"
+        // server memakai batas hari UTC; tanpa offset, jadwal pagi masuk tanggal sebelumnya
+        val tz = java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+        val path = if (date.isNullOrBlank()) "/v1/appointments"
+        else "/v1/appointments?date=$date&tz=$tz"
         val raw = request(ctx, path, "GET") ?: return JSONArray()
         return runCatching { JSONObject(raw).optJSONArray("appointments") ?: JSONArray() }
             .getOrDefault(JSONArray())
     }
+
+    /** Zona waktu perangkat dalam menit di timur UTC (WIB = 420). */
+    fun tzMinutes(): Int =
+        java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+
+    fun createAppointment(ctx: Context, body: JSONObject): Pair<Boolean, String?> {
+        val tz = JSONObject().put("tz", tzMinutes())
+        body.keys().forEach { k -> if (!body.has("tz")) tz.put(k, body.get(k)) }
+        val r = requestEx(ctx, "/v1/appointments", "POST", tz) ?: return Pair(false, "Tidak bisa menghubungi server")
+        if (r.first in 200..299) return Pair(true, null)
+        val msg = runCatching { JSONObject(r.second).optString("error") }.getOrNull()
+        return Pair(false, msg?.ifBlank { null } ?: "Gagal menyimpan jadwal (HTTP ${r.first})")
+    }
+
+    fun updateAppointment(ctx: Context, id: String, body: JSONObject): Pair<Boolean, String?> {
+        body.put("tz", tzMinutes())
+        val r = requestEx(ctx, "/v1/appointments/$id", "PATCH", body) ?: return Pair(false, "Tidak bisa menghubungi server")
+        if (r.first in 200..299) return Pair(true, null)
+        val msg = runCatching { JSONObject(r.second).optString("error") }.getOrNull()
+        return Pair(false, msg?.ifBlank { null } ?: "Gagal memperbarui jadwal (HTTP ${r.first})")
+    }
+
+    fun deleteAppointment(ctx: Context, id: String): Boolean =
+        request(ctx, "/v1/appointments/$id", "DELETE") != null
 
     fun createPatient(ctx: Context, body: JSONObject): Boolean =
         request(ctx, "/v1/patients", "POST", body) != null
@@ -479,4 +506,29 @@ object Fmt {
         if (before) age--
         return if (age in 0..130) "$age th" else "-"
     }
+
+    /** "2026-10-28T09:30:00.000Z" → "09:30" menurut jam perangkat. */
+    fun jam(iso: String?): String {
+        val ms = millis(iso) ?: return "-"
+        val c = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+        return String.format("%02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
+    }
+
+    /** ISO 8601 UTC → milidetik; null kalau tidak terbaca. */
+    fun millis(iso: String?): Long? {
+        if (iso.isNullOrBlank()) return null
+        return runCatching { java.time.Instant.parse(iso).toEpochMilli() }.getOrNull()
+    }
+
+    /** "Rab, 28 Okt 2026 · 09:30" menurut jam perangkat. */
+    fun waktuLengkap(ms: Long): String {
+        val c = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+        val hari = arrayOf("Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab")[c.get(java.util.Calendar.DAY_OF_WEEK) - 1]
+        return "$hari, ${c.get(java.util.Calendar.DAY_OF_MONTH)} ${bulan[c.get(java.util.Calendar.MONTH)]} " +
+            "${c.get(java.util.Calendar.YEAR)} · " +
+            String.format("%02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
+    }
+
+    /** Pilihan tanggal/jam lokal → ISO UTC, supaya server tidak menebak zona. */
+    fun isoUtc(ms: Long): String = java.time.Instant.ofEpochMilli(ms).toString()
 }

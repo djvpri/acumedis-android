@@ -11,8 +11,8 @@ android {
         applicationId = "com.acumedis.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 23
-        versionName = "1.12.1"
+        versionCode = 24
+        versionName = "1.13.0"
 
         val baseUrl = (project.findProperty("ACUMEDIS_BASE_URL") as String?) ?: ""
         buildConfigField("String", "BASE_URL", "\"$baseUrl\"")

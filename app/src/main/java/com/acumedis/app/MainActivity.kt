@@ -44,7 +44,10 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.qRefresh).setOnClickListener { load() }
         findViewById<View>(R.id.seeAll).setOnClickListener {
-            startActivity(Intent(this, PatientsActivity::class.java))
+            startActivity(Intent(this, AppointmentsActivity::class.java))
+        }
+        findViewById<View>(R.id.qSchedule).setOnClickListener {
+            startActivity(Intent(this, AppointmentsActivity::class.java))
         }
         findViewById<View>(R.id.logout).setOnClickListener { confirmLogout() }
         findViewById<View>(R.id.settingsBtn).setOnClickListener {

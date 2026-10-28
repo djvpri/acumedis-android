@@ -25,6 +25,9 @@ class SessionFormActivity : AppCompatActivity() {
     /** id sesi kalau form dibuka untuk mengubah sesi yang sudah ada */
     private var editId: String? = null
 
+    /** id jadwal yang jadi asal sesi ini; ditandai selesai setelah sesi tersimpan */
+    private var appointmentId: String? = null
+
     private lateinit var fComplaint: EditText
     private lateinit var fTongue: EditText
     private lateinit var fPoints: EditText
@@ -62,6 +65,7 @@ class SessionFormActivity : AppCompatActivity() {
         patientId = intent.getStringExtra("patient_id") ?: ""
         patientName = intent.getStringExtra("patient_name") ?: ""
         editId = intent.getStringExtra("session_id")
+        appointmentId = intent.getStringExtra("appointment_id")
 
         fComplaint = findViewById(R.id.complaint)
         fDuration = findViewById(R.id.duration)
@@ -105,6 +109,8 @@ class SessionFormActivity : AppCompatActivity() {
         paintPaid()
 
         if (patientId.isNotBlank()) setPatient(patientId, patientName)
+        // keluhan dari jadwal mengisi form, supaya tidak perlu ketik ulang
+        intent.getStringExtra("complaint")?.takeIf { it.isNotBlank() }?.let { fComplaint.setText(it) }
         editId?.let { loadExisting(it) }
     }
 
@@ -299,6 +305,10 @@ class SessionFormActivity : AppCompatActivity() {
                 findViewById<View>(R.id.save).isEnabled = true
                 if (isFinishing) return@runOnUiThread
                 if (ok) {
+                    // sesi dari jadwal → jadwalnya selesai, jangan dua kali kerja
+                    appointmentId?.let { id ->
+                        Api.updateAppointment(this, id, JSONObject().put("status", "done"))
+                    }
                     toast(if (editId != null) "Perubahan tersimpan" else "Sesi tersimpan")
                     finish()
                 } else {
