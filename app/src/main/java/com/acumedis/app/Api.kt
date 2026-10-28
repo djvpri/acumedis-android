@@ -351,6 +351,12 @@ object Api {
     fun addExpense(ctx: Context, body: JSONObject): Boolean =
         request(ctx, "/v1/expenses", "POST", body) != null
 
+    fun updateExpense(ctx: Context, id: String, body: JSONObject): Boolean =
+        request(ctx, "/v1/expenses/$id", "PATCH", body) != null
+
+    fun deleteExpense(ctx: Context, id: String): Boolean =
+        request(ctx, "/v1/expenses/$id", "DELETE") != null
+
     fun updateSession(ctx: Context, id: String, body: JSONObject): Boolean =
         request(ctx, "/v1/sessions/$id", "PATCH", body) != null
 

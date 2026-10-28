@@ -118,20 +118,25 @@ class FinanceActivity : AppCompatActivity() {
         }
         if (!any) methods.addView(empty("Belum ada pembayaran di periode ini"))
 
-        // pengeluaran: daftar per kategori
+        // pengeluaran: daftar baris, ketuk untuk ubah atau hapus
         val exp = findViewById<LinearLayout>(R.id.expenses)
         exp.removeAllViews()
-        val bc = j.optJSONObject("by_category")
-        var anyExp = false
-        if (bc != null) {
-            for (k in bc.keys()) {
-                val amount = bc.optDouble(k, 0.0)
-                if (amount <= 0) continue
-                anyExp = true
-                exp.addView(row(k, Fmt.rupiah(amount), R.color.red, bold = false))
+        val arrExp = j.optJSONArray("expenses")
+        if (arrExp == null || arrExp.length() == 0) {
+            exp.addView(empty("Belum ada pengeluaran dicatat"))
+        } else {
+            for (i in 0 until arrExp.length()) {
+                val o = arrExp.optJSONObject(i) ?: continue
+                val desc = o.optString("description")
+                val amount = o.optDouble("amount", 0.0)
+                val cat = o.optString("category")
+                val date = Fmt.tanggal(o.optString("date"))
+                val r = row("$desc · $cat · $date", Fmt.rupiah(amount), R.color.red, bold = false)
+                r.isClickable = true
+                r.setOnClickListener { editExpense(o) }
+                exp.addView(r)
             }
         }
-        if (!anyExp) exp.addView(empty("Belum ada pengeluaran dicatat"))
 
         // piutang
         val rec = findViewById<LinearLayout>(R.id.receivables)
@@ -212,6 +217,14 @@ class FinanceActivity : AppCompatActivity() {
 
     /** Catat pengeluaran; kategori dipilih supaya laporan bisa dijumlah. */
     private fun addExpense() {
+        editExpense(null)
+    }
+
+    /**
+     * Satu form untuk mencatat dan mengoreksi pengeluaran. Dulu hanya bisa
+     * ditambah, jadi salah ketik tidak bisa diperbaiki dari app.
+     */
+    private fun editExpense(existing: JSONObject?) {
         val categories = arrayOf("bahan", "sewa", "listrik", "gaji", "lain-lain")
         val pad = (18 * resources.displayMetrics.density).toInt()
         val box = LinearLayout(this).apply {
@@ -220,17 +233,21 @@ class FinanceActivity : AppCompatActivity() {
         }
         val desc = android.widget.EditText(this).apply {
             hint = "Keterangan (mis. beli jarum sekali pakai)"
+            setText(existing?.optString("description") ?: "")
             setBackgroundResource(R.drawable.bg_input_focus)
             setPadding(pad, pad, pad, pad)
         }
         val amount = android.widget.EditText(this).apply {
             hint = "Jumlah (Rp)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            if (existing != null && existing.optDouble("amount", 0.0) > 0) {
+                setText(existing.optDouble("amount", 0.0).toLong().toString())
+            }
             setBackgroundResource(R.drawable.bg_input_focus)
             setPadding(pad, pad, pad, pad)
         }
         val cat = TextView(this).apply {
-            text = categories[0]
+            text = existing?.optString("category")?.ifBlank { categories[0] } ?: categories[0]
             setTextColor(getColor(R.color.fg))
             setBackgroundResource(R.drawable.bg_input_focus)
             setPadding(pad, pad, pad, pad)
@@ -255,7 +272,7 @@ class FinanceActivity : AppCompatActivity() {
         box.addView(err)
 
         val dlg = AlertDialog.Builder(this)
-            .setTitle("Catat pengeluaran")
+            .setTitle(if (existing == null) "Catat pengeluaran" else "Ubah pengeluaran")
             .setView(box)
             .setNegativeButton("Batal", null)
             .setPositiveButton("Simpan", null)
@@ -275,9 +292,11 @@ class FinanceActivity : AppCompatActivity() {
                     .put("description", d)
                     .put("amount", a)
                     .put("category", cat.text.toString())
-                    .put("date", Fmt.isoUtc(midnightAt(LocalDate.now())))
+                if (existing == null) body.put("date", Fmt.isoUtc(midnightAt(LocalDate.now())))
+
                 Api.io.execute {
-                    val ok = Api.addExpense(this, body)
+                    val ok = if (existing == null) Api.addExpense(this, body)
+                    else Api.updateExpense(this, existing.optString("id"), body)
                     runOnUiThread {
                         if (isFinishing) return@runOnUiThread
                         if (ok) { dlg.dismiss(); load() }
@@ -286,7 +305,33 @@ class FinanceActivity : AppCompatActivity() {
                 }
             }
         }
+
+        // hapus hanya untuk data yang sudah ada
+        if (existing != null) {
+            dlg.setButton(android.content.DialogInterface.BUTTON_NEUTRAL, "Hapus") { _, _ ->
+                confirmDeleteExpense(existing.optString("id"), existing.optString("description"))
+            }
+        }
         dlg.show()
+    }
+
+    private fun confirmDeleteExpense(id: String, desc: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Hapus pengeluaran?")
+            .setMessage("\"$desc\" akan dihapus permanen dan laba periode ini naik. Tidak bisa dibatalkan.")
+            .setNegativeButton("Tidak", null)
+            .setPositiveButton("Hapus") { _, _ ->
+                Api.io.execute {
+                    val ok = Api.deleteExpense(this, id)
+                    runOnUiThread {
+                        if (isFinishing) return@runOnUiThread
+                        if (ok) load()
+                        else android.widget.Toast
+                            .makeText(this, "Gagal menghapus", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .show()
     }
 
     private fun midnightAt(d: LocalDate): Long =
