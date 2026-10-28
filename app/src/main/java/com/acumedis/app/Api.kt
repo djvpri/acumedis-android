@@ -291,6 +291,12 @@ object Api {
     fun setPayment(ctx: Context, sessionId: String, status: String): Boolean =
         request(ctx, "/v1/sessions/$sessionId/payment", "PATCH", JSONObject().put("payment_status", status)) != null
 
+    fun updateSession(ctx: Context, id: String, body: JSONObject): Boolean =
+        request(ctx, "/v1/sessions/$id", "PATCH", body) != null
+
+    fun deleteSession(ctx: Context, id: String): Boolean =
+        request(ctx, "/v1/sessions/$id", "DELETE") != null
+
     fun session(ctx: Context, id: String): Visit? =
         request(ctx, "/v1/sessions/$id", "GET")?.let {
             runCatching { Visit.from(JSONObject(it).getJSONObject("session")) }.getOrNull()
@@ -354,13 +360,50 @@ data class Visit(
     val points: List<String>,
     val duration: Int?,
     val fee: Double?,
-    val payment: String
+    val payment: String,
+    val tongueColor: String? = null,
+    val notes: String? = null,
+    val painScale: Int? = null,
+    val ai: AI? = null,
+    val photos: List<Photo> = emptyList()
 ) {
+    /** Hasil analisis lidah yang tersimpan bersama sesi. */
+    data class AI(
+        val tongue: String,
+        val diagnosis: String,
+        val treatment: String,
+        val points: List<String>
+    )
+
+    data class Photo(val url: String, val analysis: String?)
+
     companion object {
         fun from(o: JSONObject): Visit {
             val arr = o.optJSONArray("points_used")
             val points = mutableListOf<String>()
             if (arr != null) for (i in 0 until arr.length()) points.add(arr.optString(i))
+
+            val photos = mutableListOf<Photo>()
+            o.optJSONArray("photos")?.let { pa ->
+                for (i in 0 until pa.length()) {
+                    val p = pa.optJSONObject(i) ?: continue
+                    p.str("url")?.let { photos.add(Photo(it, p.str("analysis"))) }
+                }
+            }
+
+            val aiObj = o.optJSONObject("ai_recommendation")
+            val ai = aiObj?.let {
+                val pa = it.optJSONArray("points")
+                val pts = mutableListOf<String>()
+                if (pa != null) for (i in 0 until pa.length()) pts.add(pa.optString(i))
+                AI(
+                    tongue = it.optString("tongue"),
+                    diagnosis = it.optString("diagnosis"),
+                    treatment = it.optString("treatment"),
+                    points = pts
+                )
+            }
+
             return Visit(
                 id = o.optString("id"),
                 patientId = o.optString("patient_id"),
@@ -371,7 +414,12 @@ data class Visit(
                 points = points,
                 duration = if (o.isNull("duration_minutes")) null else o.optInt("duration_minutes"),
                 fee = if (o.isNull("fee")) null else o.optDouble("fee"),
-                payment = o.str("payment_status") ?: "unpaid"
+                payment = o.str("payment_status") ?: "unpaid",
+                tongueColor = o.str("tongue_color"),
+                notes = o.str("notes"),
+                painScale = if (o.isNull("pain_scale")) null else o.optInt("pain_scale"),
+                ai = ai,
+                photos = photos
             )
         }
     }

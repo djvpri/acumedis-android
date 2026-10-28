@@ -22,6 +22,9 @@ class SessionFormActivity : AppCompatActivity() {
     private var patientName: String = ""
     private var paid: Boolean = false
 
+    /** id sesi kalau form dibuka untuk mengubah sesi yang sudah ada */
+    private var editId: String? = null
+
     private lateinit var fComplaint: EditText
     private lateinit var fTongue: EditText
     private lateinit var fPoints: EditText
@@ -58,6 +61,7 @@ class SessionFormActivity : AppCompatActivity() {
 
         patientId = intent.getStringExtra("patient_id") ?: ""
         patientName = intent.getStringExtra("patient_name") ?: ""
+        editId = intent.getStringExtra("session_id")
 
         fComplaint = findViewById(R.id.complaint)
         fDuration = findViewById(R.id.duration)
@@ -101,6 +105,35 @@ class SessionFormActivity : AppCompatActivity() {
         paintPaid()
 
         if (patientId.isNotBlank()) setPatient(patientId, patientName)
+        editId?.let { loadExisting(it) }
+    }
+
+    companion object {
+        /** Buka form dalam mode ubah sesi yang sudah tersimpan. */
+        fun startEdit(act: android.app.Activity, sessionId: String) {
+            act.startActivity(Intent(act, SessionFormActivity::class.java).putExtra("session_id", sessionId))
+        }
+    }
+
+    /** Tarik data sesi lalu isi kolom, supaya tidak perlu ketik ulang. */
+    private fun loadExisting(id: String) {
+        findViewById<TextView>(R.id.title).text = "Ubah sesi"
+        Api.io.execute {
+            val v = Api.session(this, id) ?: return@execute
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                setPatient(v.patientId, v.patientName)
+                fComplaint.setText(v.complaint)
+                v.tongueColor?.let { fTongue.setText(it) }
+                if (v.points.isNotEmpty()) fPoints.setText(v.points.joinToString(", "))
+                v.duration?.let { fDuration.setText(it.toString()) }
+                v.notes?.let { fNotes.setText(it) }
+                v.fee?.let { fFee.setText(it.toLong().toString()) }
+                v.painScale?.let { pain.progress = it; fPainLabel.text = "$it/10" }
+                paid = v.payment == "paid"
+                paintPaid()
+            }
+        }
     }
 
     private fun setPatient(id: String, name: String) {
@@ -260,12 +293,13 @@ class SessionFormActivity : AppCompatActivity() {
         fFee.text.toString().trim().toDoubleOrNull()?.let { body.put("fee", it) }
 
         Api.io.execute {
-            val ok = Api.createSession(this, body)
+            val ok = if (editId != null) Api.updateSession(this, editId!!, body)
+            else Api.createSession(this, body)
             runOnUiThread {
                 findViewById<View>(R.id.save).isEnabled = true
                 if (isFinishing) return@runOnUiThread
                 if (ok) {
-                    toast("Sesi tersimpan")
+                    toast(if (editId != null) "Perubahan tersimpan" else "Sesi tersimpan")
                     finish()
                 } else {
                     fail("Gagal menyimpan. Periksa koneksi atau login.")
