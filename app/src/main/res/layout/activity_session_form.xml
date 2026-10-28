@@ -92,18 +92,102 @@
 
             <TextView
                 style="@style/FieldLabel"
-                android:text="Warna lidah" />
+                android:text="Warna / kondisi lidah" />
+
+            <EditText
+                android:id="@+id/tongue"
+                style="@style/FieldInput"
+                android:hint="mis. pucat, tebal di tengah"
+                android:importantForAutofill="no"
+                android:inputType="textCapSentences" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="4">
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
 
-                <TextView android:id="@+id/tPucat" style="@style/Chip" android:layout_weight="1" android:text="Pucat" android:textAlignment="center" />
-                <TextView android:id="@+id/tMerah" style="@style/Chip" android:layout_weight="1" android:text="Merah" android:textAlignment="center" />
-                <TextView android:id="@+id/tUngu" style="@style/Chip" android:layout_weight="1" android:text="Ungu" android:textAlignment="center" />
-                <TextView android:id="@+id/tNormal" style="@style/Chip" android:layout_weight="1" android:text="Normal" android:textAlignment="center" />
+                <TextView
+                    android:id="@+id/takePhoto"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="Foto lidah"
+                    android:textColor="@color/primary_deep"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/pickPhoto"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="Dari galeri"
+                    android:textColor="@color/primary_deep"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/tonguePreview"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_card"
+                android:contentDescription="Foto lidah"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/aiBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_ai"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.06"
+                    android:text="Saran AI"
+                    android:textColor="@color/primary_deep"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/aiText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/fg2"
+                    android:textSize="12.5sp" />
+
+                <TextView
+                    android:id="@+id/aiUse"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_btn"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="Pakai saran ini"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <TextView
@@ -139,27 +223,26 @@
                 style="@style/FieldLabel"
                 android:text="Titik terapi" />
 
-            <LinearLayout
+            <EditText
+                android:id="@+id/points"
+                style="@style/FieldInput"
+                android:hint="mis. LI4, LI15, GB21"
+                android:importantForAutofill="no"
+                android:inputType="textCapCharacters" />
+
+            <TextView
+                android:id="@+id/suggestPoints"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView android:id="@+id/pLI4" style="@style/Chip" android:text="LI4" />
-                <TextView android:id="@+id/pGB34" style="@style/Chip" android:text="GB34" />
-                <TextView android:id="@+id/pBL40" style="@style/Chip" android:text="BL40" />
-                <TextView android:id="@+id/pST36" style="@style/Chip" android:text="ST36" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView android:id="@+id/pSP6" style="@style/Chip" android:text="SP6" />
-                <TextView android:id="@+id/pCV4" style="@style/Chip" android:text="CV4" />
-                <TextView android:id="@+id/pGV20" style="@style/Chip" android:text="GV20" />
-                <TextView android:id="@+id/pLU7" style="@style/Chip" android:text="LU7" />
-            </LinearLayout>
+                android:layout_height="42dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Saran titik dari AI"
+                android:textColor="@color/primary_deep"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
 
             <TextView
                 style="@style/FieldLabel"

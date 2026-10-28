@@ -1,33 +1,52 @@
 package com.acumedis.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 class SessionFormActivity : AppCompatActivity() {
 
     private var patientId: String = ""
     private var patientName: String = ""
-    private var tongue: String = "Normal"
     private var paid: Boolean = false
-    private val points = linkedSetOf<String>()
 
     private lateinit var fComplaint: EditText
+    private lateinit var fTongue: EditText
+    private lateinit var fPoints: EditText
     private lateinit var fDuration: EditText
     private lateinit var fNotes: EditText
     private lateinit var fFee: EditText
     private lateinit var fError: TextView
     private lateinit var fPainLabel: TextView
     private lateinit var pain: SeekBar
+    private lateinit var preview: ImageView
+    private lateinit var aiBox: View
+    private lateinit var aiText: TextView
+    private lateinit var aiUse: TextView
 
-    private val pointIds = listOf("LI4", "GB34", "BL40", "ST36", "SP6", "CV4", "GV20", "LU7")
-    private val tongueIds = listOf("Pucat", "Merah", "Ungu", "Normal")
+    /** hasil analisis terakhir, dipakai tombol "Pakai saran ini" */
+    private var ai: Ai.Tongue? = null
+    private var photoFile: File? = null
+
+    private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { analyzeUri(it) }
+    }
+
+    private val takePhoto = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) photoFile?.let { analyzeUri(Uri.fromFile(it)) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,10 +63,21 @@ class SessionFormActivity : AppCompatActivity() {
         fError = findViewById(R.id.error)
         fPainLabel = findViewById(R.id.painLabel)
         pain = findViewById(R.id.pain)
+        preview = findViewById(R.id.tonguePreview)
+        aiBox = findViewById(R.id.aiBox)
+        aiText = findViewById(R.id.aiText)
+        aiUse = findViewById(R.id.aiUse)
+
+        fTongue = findViewById(R.id.tongue)
+        fPoints = findViewById(R.id.points)
 
         findViewById<View>(R.id.back).setOnClickListener { finish() }
         findViewById<View>(R.id.pickPatient).setOnClickListener { choosePatient() }
         findViewById<View>(R.id.save).setOnClickListener { save() }
+        findViewById<View>(R.id.takePhoto).setOnClickListener { shoot() }
+        findViewById<View>(R.id.pickPhoto).setOnClickListener { pickPhoto.launch("image/*") }
+        findViewById<View>(R.id.suggestPoints).setOnClickListener { suggestPoints() }
+        aiUse.setOnClickListener { applyAi() }
 
         pain.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -56,30 +86,6 @@ class SessionFormActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
-
-        val tongueMap = mapOf(
-            "Pucat" to R.id.tPucat, "Merah" to R.id.tMerah,
-            "Ungu" to R.id.tUngu, "Normal" to R.id.tNormal
-        )
-        tongueMap.forEach { (name, id) ->
-            findViewById<TextView>(id).setOnClickListener {
-                tongue = name
-                paintTongue(tongueMap)
-            }
-        }
-        paintTongue(tongueMap)
-
-        val pointMap = mapOf(
-            "LI4" to R.id.pLI4, "GB34" to R.id.pGB34, "BL40" to R.id.pBL40,
-            "ST36" to R.id.pST36, "SP6" to R.id.pSP6, "CV4" to R.id.pCV4,
-            "GV20" to R.id.pGV20, "LU7" to R.id.pLU7
-        )
-        pointMap.forEach { (p, id) ->
-            findViewById<TextView>(id).setOnClickListener {
-                if (!points.add(p)) points.remove(p)
-                paintPoints(pointMap)
-            }
-        }
 
         findViewById<TextView>(R.id.paid).setOnClickListener {
             paid = true
@@ -99,22 +105,6 @@ class SessionFormActivity : AppCompatActivity() {
         patientName = name
         findViewById<TextView>(R.id.pickPatient).text = name
         findViewById<TextView>(R.id.sub).text = name
-    }
-
-    private fun paintTongue(map: Map<String, Int>) {
-        map.forEach { (name, id) ->
-            val v = findViewById<TextView>(id)
-            v.isSelected = name == tongue
-            v.setTextColor(getColor(if (name == tongue) android.R.color.white else R.color.fg2))
-        }
-    }
-
-    private fun paintPoints(map: Map<String, Int>) {
-        map.forEach { (p, id) ->
-            val v = findViewById<TextView>(id)
-            v.isSelected = points.contains(p)
-            v.setTextColor(getColor(if (points.contains(p)) android.R.color.white else R.color.fg2))
-        }
     }
 
     private fun paintPaid() {
@@ -152,6 +142,71 @@ class SessionFormActivity : AppCompatActivity() {
         }
     }
 
+    // ---------- foto lidah + analisis ----------
+
+    private fun shoot() {
+        val dir = File(cacheDir, "tongue").apply { mkdirs() }
+        dir.listFiles()?.forEach { it.delete() }
+        val f = File(dir, "tongue-${System.currentTimeMillis()}.jpg")
+        photoFile = f
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+        runCatching { takePhoto.launch(uri) }
+            .onFailure { toast("Kamera tidak tersedia. Pakai \"Dari galeri\".") }
+    }
+
+    private fun analyzeUri(uri: Uri) {
+        val bytes = runCatching { contentResolver.openInputStream(uri)?.use { it.readBytes() } }
+            .getOrNull()
+        if (bytes == null || bytes.isEmpty()) return toast("Gambar tidak terbaca")
+
+        val packed = Ai.toJpegBase64(bytes) ?: return toast("Format gambar tidak didukung")
+        preview.setImageURI(null)
+        preview.setImageURI(uri)
+        preview.visibility = View.VISIBLE
+
+        aiBox.visibility = View.VISIBLE
+        aiUse.visibility = View.GONE
+        aiText.text = "Menganalisis foto lidah…"
+
+        Api.io.execute {
+            val res = Ai.analyzeTongue(this, packed.first, packed.second, fComplaint.text.toString())
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                if (res == null) {
+                    aiText.text = "Analisis gagal. Periksa koneksi atau kunci AI di server."
+                    return@runOnUiThread
+                }
+                ai = res
+                aiText.text = buildString {
+                    if (res.tongue.isNotBlank()) append("Lidah: ").append(res.tongue).append("\n\n")
+                    if (res.diagnosis.isNotBlank()) append("Pola: ").append(res.diagnosis).append("\n\n")
+                    if (res.treatment.isNotBlank()) append("Saran terapi: ").append(res.treatment).append("\n\n")
+                    if (res.points.isNotEmpty()) append("Titik: ").append(res.points.joinToString(", ")).append("\n\n")
+                    append(res.notes)
+                }.trim()
+                aiUse.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    /** Isi kolom lidah + titik dari hasil analisis AI. */
+    private fun applyAi() {
+        val r = ai ?: return
+        if (r.tongue.isNotBlank()) fTongue.setText(r.tongue)
+        if (r.points.isNotEmpty()) fPoints.setText(r.points.joinToString(", "))
+        toast("Saran AI dimasukkan ke kolom")
+    }
+
+    private fun suggestPoints() {
+        val r = ai
+        if (r != null && r.points.isNotEmpty()) {
+            fPoints.setText(r.points.joinToString(", "))
+            toast("Titik dari analisis foto dimasukkan")
+        } else {
+            toast("Analisis foto lidah dulu supaya titik bisa disarankan.")
+        }
+    }
+
     private fun save() {
         val complaint = fComplaint.text.toString().trim()
         when {
@@ -161,12 +216,18 @@ class SessionFormActivity : AppCompatActivity() {
         fError.visibility = View.GONE
         findViewById<View>(R.id.save).isEnabled = false
 
+        // titik ditulis bebas ("LI4, LI15") → dirapikan jadi array
+        val pointList = fPoints.text.toString()
+            .split(',', ';', ' ')
+            .map { it.trim().uppercase() }
+            .filter { it.isNotEmpty() }
+
         val body = JSONObject()
             .put("patient_id", patientId)
             .put("chief_complaint", complaint)
-            .put("tongue_color", tongue)
+            .put("tongue_color", fTongue.text.toString().trim())
             .put("pain_scale", pain.progress)
-            .put("points_used", JSONArray(points.toList()))
+            .put("points_used", JSONArray(pointList))
             .put("duration_minutes", fDuration.text.toString().trim().toIntOrNull() ?: 30)
             .put("notes", fNotes.text.toString().trim())
             .put("payment_status", if (paid) "paid" else "unpaid")
