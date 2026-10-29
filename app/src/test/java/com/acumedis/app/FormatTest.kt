@@ -26,6 +26,9 @@ class FormatTest {
         assertEquals("Rp 1.250.000", Fmt.rupiah(1250000.0))
         assertEquals("Rp 0", Fmt.rupiah(0.0))
         assertEquals("-", Fmt.rupiah(null))
+        // laba negatif: minus di depan angka, bukan menempel setelah "Rp"
+        assertEquals("Rp -375.000", Fmt.rupiah(-375000.0))
+        assertEquals("Rp -1.050.000", Fmt.rupiah(-1050000.0))
     }
 
     @Test

@@ -522,7 +522,11 @@ object Fmt {
     fun rupiah(v: Double?): String {
         if (v == null) return "-"
         val n = v.toLong()
-        return "Rp " + n.toString().reversed().chunked(3).joinToString(".").reversed()
+        // tanda minus harus di depan "Rp", bukan menempel di belakangnya:
+        // -375000 → "Rp -375.000", bukan "Rp -.375.000"
+        val minus = if (n < 0) "-" else ""
+        val abs = kotlin.math.abs(n)
+        return "Rp " + minus + abs.toString().reversed().chunked(3).joinToString(".").reversed()
     }
 
     /** "1990-05-17" → "34 th" (perkiraan; cukup untuk kartu pasien). */
