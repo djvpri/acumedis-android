@@ -203,7 +203,9 @@ class MainActivity : AppCompatActivity() {
 
                 val at = o.optString("scheduled_at")
                 val qn = if (o.isNull("queue_number")) 0 else o.optInt("queue_number")
-                val time = if (at.length >= 16) at.substring(11, 16) else "-"
+                // jam menurut zona perangkat — potong string ISO mentah akan
+                // menampilkan jam UTC (02:00 untuk jadwal 09:00 WIB)
+                val time = Fmt.jam(at)
                 val isDone = status == "done"
                 val tag = when {
                     isDone -> "Selesai"

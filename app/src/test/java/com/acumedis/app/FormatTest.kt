@@ -21,6 +21,20 @@ class FormatTest {
     }
 
     @Test
+    fun jamMenurutZonaPerangkat() {
+        // server menyimpan UTC; app harus menampilkannya dalam jam perangkat,
+        // bukan memotong string ISO mentah
+        val tz = java.util.TimeZone.getDefault()
+        val iso = "2026-10-29T02:00:00.000Z"
+        val ms = Fmt.millis(iso)!!
+        val c = java.util.Calendar.getInstance(tz).apply { timeInMillis = ms }
+        val expect = String.format("%02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
+        assertEquals(expect, Fmt.jam(iso))
+        assertEquals("-", Fmt.jam(null))
+        assertEquals("-", Fmt.jam("bukan tanggal"))
+    }
+
+    @Test
     fun rupiahRibuan() {
         assertEquals("Rp 150.000", Fmt.rupiah(150000.0))
         assertEquals("Rp 1.250.000", Fmt.rupiah(1250000.0))
