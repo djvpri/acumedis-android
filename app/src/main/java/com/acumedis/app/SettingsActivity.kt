@@ -45,8 +45,84 @@ class SettingsActivity : AppCompatActivity() {
             Updates.check(this) { updateBtn.text = "Cek update terbaru" }
         }
         findViewById<View>(R.id.diagBtn).setOnClickListener { showDiagnostics() }
+        findViewById<View>(R.id.licRefresh).setOnClickListener { loadLicense() }
 
         load()
+        loadLicense()
+    }
+
+    /**
+     * Kartu lisensi: hanya-baca. Perpanjangan dilakukan admin di Z One — kalau
+     * app bisa memperpanjang sendiri, satu APK yang dibongkar bisa memberi
+     * lisensi seumur hidup.
+     */
+    private fun loadLicense() {
+        val btn = findViewById<TextView>(R.id.licRefresh)
+        btn.text = "Memuat…"
+
+        Api.io.execute {
+            val l = Api.license(this)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                btn.text = "Perbarui status"
+                if (l == null) {
+                    findViewById<TextView>(R.id.licPlan).text = "Paket —"
+                    findViewById<TextView>(R.id.licExpiry).text = "Status lisensi tidak terbaca"
+                    return@runOnUiThread
+                }
+                paintLicense(l)
+            }
+        }
+    }
+
+    private fun paintLicense(l: JSONObject) {
+        val plan = l.str("plan") ?: "starter"
+        val state = l.str("state") ?: "active"
+        val days = if (l.isNull("daysLeft")) null else l.optInt("daysLeft")
+        val maxPrac = if (l.isNull("maxPractitioners")) null else l.optInt("maxPractitioners")
+
+        findViewById<TextView>(R.id.licPlan).text = "Paket " + plan.replaceFirstChar { it.uppercase() }
+
+        val chip = findViewById<TextView>(R.id.licState)
+        val (label, bg, fg) = when (state) {
+            "expired" -> Triple("Berakhir", R.drawable.bg_soft_red, R.color.red)
+            "suspended" -> Triple("Ditangguhkan", R.drawable.bg_soft_red, R.color.red)
+            "grace" -> Triple("Tenggang", R.drawable.bg_pill_amber, R.color.amber)
+            else -> Triple("Aktif", R.drawable.bg_pill, R.color.green)
+        }
+        chip.text = label
+        chip.setBackgroundResource(bg)
+        chip.setTextColor(getColor(fg))
+
+        val expiry = l.str("expiresAt")
+        findViewById<TextView>(R.id.licExpiry).text = when {
+            expiry == null -> "Tanpa tanggal berakhir"
+            days == null -> "Berlaku sampai " + Fmt.tanggal(expiry)
+            days >= 0 -> "Berlaku sampai ${Fmt.tanggal(expiry)} · sisa $days hari"
+            else -> "Berakhir ${Fmt.tanggal(expiry)} · lewat ${-days} hari"
+        }
+
+        val terpakai = staff.length()
+        findViewById<TextView>(R.id.licStaff).text = if (maxPrac != null)
+            "Praktisi $terpakai dari $maxPrac terpakai" else "Praktisi $terpakai"
+
+        val note = findViewById<TextView>(R.id.licNote)
+        val pesan = when (state) {
+            "expired" -> "Data tetap bisa dibaca dan nota bisa dicetak. Tambah pasien, sesi, jadwal, dan pembayaran tidak bisa sampai lisensi diperpanjang."
+            "suspended" -> "Hanya bisa membaca data. Hubungi admin di Z One untuk mengaktifkan kembali."
+            "grace" -> "Masih bisa menambah data. Segera hubungi admin di Z One untuk memperpanjang."
+            else -> if (days != null && days <= 7) "Lisensi berakhir dalam $days hari. Hubungi admin di Z One." else null
+        }
+        if (pesan != null) {
+            note.text = pesan
+            note.setTextColor(getColor(if (state == "expired" || state == "suspended") R.color.red else R.color.amber))
+            note.visibility = View.VISIBLE
+        } else note.visibility = View.GONE
+
+        val synced = l.str("syncedAt")
+        findViewById<TextView>(R.id.licSync).text = if (synced != null)
+            "Terakhir disegarkan dari Z One: " + Fmt.tanggal(synced) else
+            "Belum pernah disegarkan dari Z One"
     }
 
     /** Diagnostik: antrean log lokal, kirim paksa, hapus antrean. */
@@ -152,6 +228,11 @@ class SettingsActivity : AppCompatActivity() {
                 textSize = 12f
             }
             staffList.addView(t)
+        }
+        // angka "terpakai" di kartu lisensi ikut diperbarui setelah daftar dimuat
+        val cap = findViewById<TextView>(R.id.licStaff)
+        if (cap.text.contains("dari")) {
+            cap.text = "Praktisi ${staff.length()} dari " + cap.text.toString().substringAfter("dari ")
         }
     }
 
